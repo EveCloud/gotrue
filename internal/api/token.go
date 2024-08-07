@@ -255,11 +255,10 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	/*
-		if params.AuthCode == "" || params.CodeVerifier == "" {
-			return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
-		}
-	*/
+	if params.AuthCode == "" || params.CodeVerifier == "" {
+		return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
+	}
+
 	if params.AuthCode == "" {
 		return badRequestError(ErrorCodeValidationFailed, "invalid request: auth code should be non-empty")
 	}
@@ -280,11 +279,9 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	/*
-		if err := flowState.VerifyPKCE(params.CodeVerifier); err != nil {
-			return badRequestError(ErrorBadCodeVerifier, err.Error())
-		}
-	*/
+	if err := flowState.VerifyPKCE(params.CodeVerifier); err != nil {
+		return badRequestError(ErrorBadCodeVerifier, err.Error())
+	}
 
 	var token *AccessTokenResponse
 	err = db.Transaction(func(tx *storage.Connection) error {
