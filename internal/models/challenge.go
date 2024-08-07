@@ -1,10 +1,11 @@
 package models
 
 import (
-	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/storage"
 	"time"
+
+	"github.com/evecloud/auth/internal/crypto"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/gofrs/uuid"
 )
 
 type Challenge struct {

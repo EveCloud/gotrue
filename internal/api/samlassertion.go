@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/crewjam/saml"
-	"github.com/supabase/auth/internal/models"
+	"github.com/evecloud/auth/internal/models"
 )
 
 type SAMLAssertion struct {

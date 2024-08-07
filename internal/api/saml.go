@@ -25,7 +25,7 @@ func (a *API) getSAMLServiceProvider(identityProvider *saml.EntityDescriptor, id
 
 		externalURL = url
 	} else {
-		url, err := url.ParseRequestURI(a.config.API.ExternalURL)
+		url, err := url.ParseRequestURI(a.config.API.URL)
 		if err != nil {
 			// this should not fail as a.config should have been validated using #Validate()
 			panic(err)

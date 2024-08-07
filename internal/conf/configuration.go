@@ -58,7 +58,6 @@ func (t *Time) UnmarshalText(text []byte) error {
 type OAuthProviderConfiguration struct {
 	ClientID       []string `json:"client_id" split_words:"true"`
 	Secret         string   `json:"secret"`
-	RedirectURI    string   `json:"redirect_uri" split_words:"true"`
 	URL            string   `json:"url"`
 	ApiURL         string   `json:"api_url" split_words:"true"`
 	Enabled        bool     `json:"enabled"`
@@ -76,8 +75,8 @@ type EmailProviderConfiguration struct {
 // DBConfiguration holds all the database related configuration.
 type DBConfiguration struct {
 	Driver    string `json:"driver" required:"true"`
-	URL       string `json:"url" envconfig:"DATABASE_URL" required:"true"`
-	Namespace string `json:"namespace" envconfig:"DB_NAMESPACE" default:"auth"`
+	URL       string `json:"url" required:"true"`
+	Namespace string `json:"namespace" default:"auth"`
 	// MaxPoolSize defaults to 0 (unlimited).
 	MaxPoolSize       int           `json:"max_pool_size" split_words:"true"`
 	MaxIdlePoolSize   int           `json:"max_idle_pool_size" split_words:"true"`
@@ -123,6 +122,9 @@ type PhoneFactorTypeConfiguration struct {
 
 // MFAConfiguration holds all the MFA related Configuration
 type MFAConfiguration struct {
+	// Enabled is deprecated, but still used to signal TOTP.EnrollEnabled and TOTP.VerifyEnabled.
+	Enabled bool `default:"false"`
+
 	ChallengeExpiryDuration     float64                      `json:"challenge_expiry_duration" default:"300" split_words:"true"`
 	FactorExpiryDuration        time.Duration                `json:"factor_expiry_duration" default:"300s" split_words:"true"`
 	RateLimitChallengeAndVerify float64                      `split_words:"true" default:"15"`
@@ -134,15 +136,15 @@ type MFAConfiguration struct {
 
 type APIConfiguration struct {
 	Host               string
-	Port               string `envconfig:"PORT" default:"8081"`
+	Port               string `default:"8081"`
 	Endpoint           string
-	RequestIDHeader    string        `envconfig:"REQUEST_ID_HEADER"`
-	ExternalURL        string        `json:"external_url" envconfig:"API_EXTERNAL_URL" required:"true"`
+	RequestIDHeader    string
+	URL                string        `json:"url" required:"true"`
 	MaxRequestDuration time.Duration `json:"max_request_duration" split_words:"true" default:"10s"`
 }
 
 func (a *APIConfiguration) Validate() error {
-	_, err := url.ParseRequestURI(a.ExternalURL)
+	_, err := url.ParseRequestURI(a.URL)
 	if err != nil {
 		return err
 	}
@@ -212,7 +214,7 @@ type HIBPConfiguration struct {
 	Enabled    bool `json:"enabled"`
 	FailClosed bool `json:"fail_closed" split_words:"true"`
 
-	UserAgent string `json:"user_agent" split_words:"true" default:"https://github.com/supabase/gotrue"`
+	UserAgent string `json:"user_agent" split_words:"true" default:"evecloud/gotrue"`
 
 	Bloom HIBPBloomConfiguration `json:"bloom"`
 }
@@ -327,7 +329,6 @@ type ProviderConfiguration struct {
 	Phone                   PhoneProviderConfiguration     `json:"phone"`
 	Zoom                    OAuthProviderConfiguration     `json:"zoom"`
 	IosBundleId             string                         `json:"ios_bundle_id" split_words:"true"`
-	RedirectURL             string                         `json:"redirect_url"`
 	AllowedIdTokenIssuers   []string                       `json:"allowed_id_token_issuers" split_words:"true"`
 	FlowStateExpiryDuration time.Duration                  `json:"flow_state_expiry_duration" split_words:"true"`
 }
@@ -648,9 +649,7 @@ func LoadGlobal(filename string) (*GlobalConfiguration, error) {
 
 	config := new(GlobalConfiguration)
 
-	// although the package is called "auth" it used to be called "gotrue"
-	// so environment configs will remain to be called "GOTRUE"
-	if err := envconfig.Process("gotrue", config); err != nil {
+	if err := envconfig.Process("auth", config); err != nil {
 		return nil, err
 	}
 
@@ -692,7 +691,7 @@ func LoadGlobal(filename string) (*GlobalConfiguration, error) {
 	}
 
 	if config.SAML.Enabled {
-		if err := config.SAML.PopulateFields(config.API.ExternalURL); err != nil {
+		if err := config.SAML.PopulateFields(config.API.URL); err != nil {
 			return nil, err
 		}
 	} else {
@@ -934,9 +933,6 @@ func (o *OAuthProviderConfiguration) ValidateOAuth() error {
 	}
 	if o.Secret == "" {
 		return errors.New("missing OAuth secret")
-	}
-	if o.RedirectURI == "" {
-		return errors.New("missing redirect URI")
 	}
 	return nil
 }

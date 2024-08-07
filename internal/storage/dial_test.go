@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/evecloud/auth/internal/conf"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 type TestUser struct {

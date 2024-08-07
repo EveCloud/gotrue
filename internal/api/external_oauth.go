@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/mrjones/oauth"
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/observability"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/observability"
 )
 
 // OAuthProviderData contains the userData and token returned by the oauth provider
@@ -103,36 +102,6 @@ func (a *API) oAuthCallback(ctx context.Context, r *http.Request, providerType s
 		refreshToken: token.RefreshToken,
 		code:         oauthCode,
 	}, nil
-}
-
-func (a *API) oAuth1Callback(ctx context.Context, providerType string) (*OAuthProviderData, error) {
-	oAuthProvider, err := a.OAuthProvider(ctx, providerType)
-	if err != nil {
-		return nil, badRequestError(ErrorCodeOAuthProviderNotSupported, "Unsupported provider: %+v", err).WithInternalError(err)
-	}
-	oauthToken := getRequestToken(ctx)
-	oauthVerifier := getOAuthVerifier(ctx)
-	var accessToken *oauth.AccessToken
-	var userData *provider.UserProvidedData
-	if twitterProvider, ok := oAuthProvider.(*provider.TwitterProvider); ok {
-		accessToken, err = twitterProvider.Consumer.AuthorizeToken(&oauth.RequestToken{
-			Token: oauthToken,
-		}, oauthVerifier)
-		if err != nil {
-			return nil, internalServerError("Unable to retrieve access token").WithInternalError(err)
-		}
-		userData, err = twitterProvider.FetchUserData(ctx, accessToken)
-		if err != nil {
-			return nil, internalServerError("Error getting user email from external provider").WithInternalError(err)
-		}
-	}
-
-	return &OAuthProviderData{
-		userData:     userData,
-		token:        accessToken.Token,
-		refreshToken: "",
-	}, nil
-
 }
 
 // OAuthProvider returns the corresponding oauth provider as an OAuthProvider interface

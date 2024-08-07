@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/utilities"
 	"golang.org/x/exp/utf8string"
 )
 

@@ -3,12 +3,12 @@ package models
 import (
 	"testing"
 
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/evecloud/auth/internal/storage/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
 )
 
 type AccountLinkingTestSuite struct {

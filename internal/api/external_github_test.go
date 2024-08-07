@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/evecloud/auth/internal/models"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/models"
 )
 
 func (ts *ExternalTestSuite) TestSignupExternalGithub() {
@@ -24,7 +24,7 @@ func (ts *ExternalTestSuite) TestSignupExternalGithub() {
 	u, err := url.Parse(w.Header().Get("Location"))
 	ts.Require().NoError(err, "redirect url parse failed")
 	q := u.Query()
-	ts.Equal(ts.Config.External.Github.RedirectURI, q.Get("redirect_uri"))
+	ts.Equal(ts.Config.API.URL+"/callback", q.Get("redirect_uri"))
 	ts.Equal(ts.Config.External.Github.ClientID, []string{q.Get("client_id")})
 	ts.Equal("code", q.Get("response_type"))
 	ts.Equal("user:email", q.Get("scope"))
@@ -47,7 +47,7 @@ func GitHubTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *in
 			*tokenCount++
 			ts.Equal(code, r.FormValue("code"))
 			ts.Equal("authorization_code", r.FormValue("grant_type"))
-			ts.Equal(ts.Config.External.Github.RedirectURI, r.FormValue("redirect_uri"))
+			ts.Equal(ts.Config.API.URL+"/callback", r.FormValue("redirect_uri"))
 
 			w.Header().Add("Content-Type", "application/json")
 			fmt.Fprint(w, `{"access_token":"github_token","expires_in":100000}`)

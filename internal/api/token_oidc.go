@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/storage"
 )
 
 // IdTokenGrantParams are the parameters the IdTokenGrant method accepts
@@ -61,24 +61,6 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 		cfg = &config.External.Azure
 		providerType = "azure"
 		acceptableClientIDs = append(acceptableClientIDs, config.External.Azure.ClientID...)
-
-	case p.Provider == "facebook" || p.Issuer == provider.IssuerFacebook:
-		cfg = &config.External.Facebook
-		providerType = "facebook"
-		issuer = provider.IssuerFacebook
-		acceptableClientIDs = append(acceptableClientIDs, config.External.Facebook.ClientID...)
-
-	case p.Provider == "keycloak" || (config.External.Keycloak.Enabled && config.External.Keycloak.URL != "" && p.Issuer == config.External.Keycloak.URL):
-		cfg = &config.External.Keycloak
-		providerType = "keycloak"
-		issuer = config.External.Keycloak.URL
-		acceptableClientIDs = append(acceptableClientIDs, config.External.Keycloak.ClientID...)
-
-	case p.Provider == "kakao" || p.Issuer == provider.IssuerKakao:
-		cfg = &config.External.Kakao
-		providerType = "kakao"
-		issuer = provider.IssuerKakao
-		acceptableClientIDs = append(acceptableClientIDs, config.External.Kakao.ClientID...)
 
 	default:
 		log.WithField("issuer", p.Issuer).WithField("client_id", p.ClientID).Warn("Use of POST /token with arbitrary issuer and client_id is deprecated for security reasons. Please switch to using the API with provider only!")

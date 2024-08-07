@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 	"github.com/fatih/structs"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 // InviteParams are the parameters the Signup endpoint accepts

@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/evecloud/auth/internal/conf"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -37,7 +37,7 @@ type googleProvider struct {
 }
 
 // NewGoogleProvider creates a Google OAuth2 identity provider.
-func NewGoogleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewGoogleProvider(conf conf.APIConfiguration, ctx context.Context, ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -66,7 +66,6 @@ func NewGoogleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration,
 			ClientSecret: ext.Secret,
 			Endpoint:     oidcProvider.Endpoint(),
 			Scopes:       oauthScopes,
-			RedirectURL:  ext.RedirectURI,
 		},
 		oidc: oidcProvider,
 	}, nil

@@ -11,16 +11,16 @@ import (
 	"github.com/aaronarduino/goqrsvg"
 	svg "github.com/ajstarks/svgo"
 	"github.com/boombuler/barcode/qr"
+	"github.com/evecloud/auth/internal/api/sms_provider"
+	"github.com/evecloud/auth/internal/crypto"
+	"github.com/evecloud/auth/internal/hooks"
+	"github.com/evecloud/auth/internal/metering"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/gofrs/uuid"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 const DefaultQRSize = 3

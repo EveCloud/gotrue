@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/badoux/checkmail"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/models"
 )
 
 type MailClient interface {

@@ -8,9 +8,9 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 // Common error messages during signup flow
@@ -187,48 +187,23 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 	log := observability.GetLogEntry(r).Entry
 	errorID := utilities.GetRequestID(r.Context())
 
-	apiVersion, averr := DetermineClosestAPIVersion(r.Header.Get(APIVersionHeaderName))
-	if averr != nil {
-		log.WithError(averr).Warn("Invalid version passed to " + APIVersionHeaderName + " header, defaulting to initial version")
-	} else if apiVersion != APIVersionInitial {
-		// Echo back the determined API version from the request
-		w.Header().Set(APIVersionHeaderName, FormatAPIVersion(apiVersion))
-	}
-
 	switch e := err.(type) {
 	case *WeakPasswordError:
-		if apiVersion.Compare(APIVersion20240101) >= 0 {
-			var output struct {
-				HTTPErrorResponse20240101
-				Payload struct {
-					Reasons []string `json:"reasons,omitempty"`
-				} `json:"weak_password,omitempty"`
-			}
 
-			output.Code = ErrorCodeWeakPassword
-			output.Message = e.Message
-			output.Payload.Reasons = e.Reasons
+		var output struct {
+			HTTPError
+			Payload struct {
+				Reasons []string `json:"reasons,omitempty"`
+			} `json:"weak_password,omitempty"`
+		}
 
-			if jsonErr := sendJSON(w, http.StatusUnprocessableEntity, output); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-			}
+		output.HTTPStatus = http.StatusUnprocessableEntity
+		output.ErrorCode = ErrorCodeWeakPassword
+		output.Message = e.Message
+		output.Payload.Reasons = e.Reasons
 
-		} else {
-			var output struct {
-				HTTPError
-				Payload struct {
-					Reasons []string `json:"reasons,omitempty"`
-				} `json:"weak_password,omitempty"`
-			}
-
-			output.HTTPStatus = http.StatusUnprocessableEntity
-			output.ErrorCode = ErrorCodeWeakPassword
-			output.Message = e.Message
-			output.Payload.Reasons = e.Reasons
-
-			if jsonErr := sendJSON(w, output.HTTPStatus, output); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-			}
+		if jsonErr := sendJSON(w, output.HTTPStatus, output); jsonErr != nil && jsonErr != context.DeadlineExceeded {
+			log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
 		}
 
 	case *HTTPError:
@@ -243,43 +218,24 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 			log.WithError(e.Cause()).Info(e.Error())
 		}
 
-		if apiVersion.Compare(APIVersion20240101) >= 0 {
-			resp := HTTPErrorResponse20240101{
-				Code:    e.ErrorCode,
-				Message: e.Message,
+		if e.ErrorCode == "" {
+			if e.HTTPStatus == http.StatusInternalServerError {
+				e.ErrorCode = ErrorCodeUnexpectedFailure
+			} else {
+				e.ErrorCode = ErrorCodeUnknown
 			}
+		}
 
-			if resp.Code == "" {
-				if e.HTTPStatus == http.StatusInternalServerError {
-					resp.Code = ErrorCodeUnexpectedFailure
-				} else {
-					resp.Code = ErrorCodeUnknown
-				}
-			}
-
-			if jsonErr := sendJSON(w, e.HTTPStatus, resp); jsonErr != nil && jsonErr != context.DeadlineExceeded {
+		// Provide better error messages for certain user-triggered Postgres errors.
+		if pgErr := utilities.NewPostgresError(e.InternalError); pgErr != nil {
+			if jsonErr := sendJSON(w, pgErr.HttpStatusCode, pgErr); jsonErr != nil && jsonErr != context.DeadlineExceeded {
 				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
 			}
-		} else {
-			if e.ErrorCode == "" {
-				if e.HTTPStatus == http.StatusInternalServerError {
-					e.ErrorCode = ErrorCodeUnexpectedFailure
-				} else {
-					e.ErrorCode = ErrorCodeUnknown
-				}
-			}
+			return
+		}
 
-			// Provide better error messages for certain user-triggered Postgres errors.
-			if pgErr := utilities.NewPostgresError(e.InternalError); pgErr != nil {
-				if jsonErr := sendJSON(w, pgErr.HttpStatusCode, pgErr); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-					log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-				}
-				return
-			}
-
-			if jsonErr := sendJSON(w, e.HTTPStatus, e); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-			}
+		if jsonErr := sendJSON(w, e.HTTPStatus, e); jsonErr != nil && jsonErr != context.DeadlineExceeded {
+			log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
 		}
 
 	case *OAuthError:
@@ -294,25 +250,14 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 	default:
 		log.WithError(e).Errorf("Unhandled server error: %s", e.Error())
 
-		if apiVersion.Compare(APIVersion20240101) >= 0 {
-			resp := HTTPErrorResponse20240101{
-				Code:    ErrorCodeUnexpectedFailure,
-				Message: "Unexpected failure, please check server logs for more information",
-			}
+		httpError := HTTPError{
+			HTTPStatus: http.StatusInternalServerError,
+			ErrorCode:  ErrorCodeUnexpectedFailure,
+			Message:    "Unexpected failure, please check server logs for more information",
+		}
 
-			if jsonErr := sendJSON(w, http.StatusInternalServerError, resp); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-			}
-		} else {
-			httpError := HTTPError{
-				HTTPStatus: http.StatusInternalServerError,
-				ErrorCode:  ErrorCodeUnexpectedFailure,
-				Message:    "Unexpected failure, please check server logs for more information",
-			}
-
-			if jsonErr := sendJSON(w, http.StatusInternalServerError, httpError); jsonErr != nil && jsonErr != context.DeadlineExceeded {
-				log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
-			}
+		if jsonErr := sendJSON(w, http.StatusInternalServerError, httpError); jsonErr != nil && jsonErr != context.DeadlineExceeded {
+			log.WithError(jsonErr).Warn("Failed to send JSON on ResponseWriter")
 		}
 	}
 }

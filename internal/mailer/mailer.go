@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/models"
 	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 	"github.com/supabase/mailme"
 	"gopkg.in/gomail.v2"
 )
@@ -54,7 +54,7 @@ func NewMailer(globalConfig *conf.GlobalConfiguration) Mailer {
 	})
 
 	from := mail.FormatAddress(globalConfig.SMTP.AdminEmail, globalConfig.SMTP.SenderName)
-	u, _ := url.ParseRequestURI(globalConfig.API.ExternalURL)
+	u, _ := url.ParseRequestURI(globalConfig.API.URL)
 
 	var mailClient MailClient
 	if globalConfig.SMTP.Host == "" {

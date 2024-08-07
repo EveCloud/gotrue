@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 func sendJSON(w http.ResponseWriter, status int, obj interface{}) error {
@@ -27,13 +27,8 @@ func isAdmin(u *models.User, config *conf.GlobalConfiguration) bool {
 	return config.JWT.Aud == u.Aud && u.HasRole(config.JWT.AdminGroupName)
 }
 
-func (a *API) requestAud(ctx context.Context, r *http.Request) string {
+func (a *API) requestAud(ctx context.Context, _ *http.Request) string {
 	config := a.config
-	// First check for an audience in the header
-	if aud := r.Header.Get(audHeaderName); aud != "" {
-		return aud
-	}
-
 	// Then check the token
 	claims := getClaims(ctx)
 

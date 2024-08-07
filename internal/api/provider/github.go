@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/evecloud/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -36,7 +36,7 @@ type githubUserEmail struct {
 }
 
 // NewGithubProvider creates a Github account provider.
-func NewGithubProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewGithubProvider(config conf.APIConfiguration, ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -63,8 +63,7 @@ func NewGithubProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAut
 				AuthURL:  authHost + "/login/oauth/authorize",
 				TokenURL: authHost + "/login/oauth/access_token",
 			},
-			RedirectURL: ext.RedirectURI,
-			Scopes:      oauthScopes,
+			Scopes: oauthScopes,
 		},
 		APIHost: apiHost,
 	}, nil

@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/evecloud/auth/internal/conf"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -59,7 +59,7 @@ type appleUser struct {
 }
 
 // NewAppleProvider creates a Apple account provider.
-func NewAppleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration) (OAuthProvider, error) {
+func NewAppleProvider(conf conf.APIConfiguration, ctx context.Context, ext conf.OAuthProviderConfiguration) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -82,7 +82,6 @@ func NewAppleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration) 
 				"email",
 				"name",
 			},
-			RedirectURL: ext.RedirectURI,
 		},
 		oidc: oidcProvider,
 	}, nil

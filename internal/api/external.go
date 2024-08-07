@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/fatih/structs"
 	"github.com/gofrs/uuid"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 	"golang.org/x/oauth2"
 )
 
@@ -133,7 +133,7 @@ func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Requ
 
 // ExternalProviderCallback handles the callback endpoint in the external oauth provider flow
 func (a *API) ExternalProviderCallback(w http.ResponseWriter, r *http.Request) error {
-	rurl := a.getExternalRedirectURL(r)
+	rurl := a.getExternalRedirectURL()
 	u, err := url.Parse(rurl)
 	if err != nil {
 		return err
@@ -148,13 +148,7 @@ func (a *API) handleOAuthCallback(r *http.Request) (*OAuthProviderData, error) {
 
 	var oAuthResponseData *OAuthProviderData
 	var err error
-	switch providerType {
-	case "twitter":
-		// future OAuth1.0 providers will use this method
-		oAuthResponseData, err = a.oAuth1Callback(ctx, providerType)
-	default:
-		oAuthResponseData, err = a.oAuthCallback(ctx, r, providerType)
-	}
+	oAuthResponseData, err = a.oAuthCallback(ctx, r, providerType)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +239,7 @@ func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Re
 		return err
 	}
 
-	rurl := a.getExternalRedirectURL(r)
+	rurl := a.getExternalRedirectURL()
 	if flowState != nil {
 		// This means that the callback is using PKCE
 		// Set the flowState.AuthCode to the query param here
@@ -525,49 +519,13 @@ func (a *API) Provider(ctx context.Context, name string, scopes string) (provide
 
 	switch name {
 	case "apple":
-		return provider.NewAppleProvider(ctx, config.External.Apple)
+		return provider.NewAppleProvider(config.API, ctx, config.External.Apple)
 	case "azure":
-		return provider.NewAzureProvider(config.External.Azure, scopes)
-	case "bitbucket":
-		return provider.NewBitbucketProvider(config.External.Bitbucket)
-	case "discord":
-		return provider.NewDiscordProvider(config.External.Discord, scopes)
-	case "facebook":
-		return provider.NewFacebookProvider(config.External.Facebook, scopes)
-	case "figma":
-		return provider.NewFigmaProvider(config.External.Figma, scopes)
-	case "fly":
-		return provider.NewFlyProvider(config.External.Fly, scopes)
+		return provider.NewAzureProvider(config.API, config.External.Azure, scopes)
 	case "github":
-		return provider.NewGithubProvider(config.External.Github, scopes)
-	case "gitlab":
-		return provider.NewGitlabProvider(config.External.Gitlab, scopes)
+		return provider.NewGithubProvider(config.API, config.External.Github, scopes)
 	case "google":
-		return provider.NewGoogleProvider(ctx, config.External.Google, scopes)
-	case "kakao":
-		return provider.NewKakaoProvider(config.External.Kakao, scopes)
-	case "keycloak":
-		return provider.NewKeycloakProvider(config.External.Keycloak, scopes)
-	case "linkedin":
-		return provider.NewLinkedinProvider(config.External.Linkedin, scopes)
-	case "linkedin_oidc":
-		return provider.NewLinkedinOIDCProvider(config.External.LinkedinOIDC, scopes)
-	case "notion":
-		return provider.NewNotionProvider(config.External.Notion)
-	case "spotify":
-		return provider.NewSpotifyProvider(config.External.Spotify, scopes)
-	case "slack":
-		return provider.NewSlackProvider(config.External.Slack, scopes)
-	case "slack_oidc":
-		return provider.NewSlackOIDCProvider(config.External.SlackOIDC, scopes)
-	case "twitch":
-		return provider.NewTwitchProvider(config.External.Twitch, scopes)
-	case "twitter":
-		return provider.NewTwitterProvider(config.External.Twitter, scopes)
-	case "workos":
-		return provider.NewWorkOSProvider(config.External.WorkOS)
-	case "zoom":
-		return provider.NewZoomProvider(config.External.Zoom)
+		return provider.NewGoogleProvider(config.API, ctx, config.External.Google, scopes)
 	default:
 		return nil, fmt.Errorf("Provider %s could not be found", name)
 	}
@@ -644,16 +602,9 @@ func getErrorQueryString(err error, errorID string, log logrus.FieldLogger, q ur
 	return &q
 }
 
-func (a *API) getExternalRedirectURL(r *http.Request) string {
-	ctx := r.Context()
+func (a *API) getExternalRedirectURL() string {
 	config := a.config
-	if config.External.RedirectURL != "" {
-		return config.External.RedirectURL
-	}
-	if er := getExternalReferrer(ctx); er != "" {
-		return er
-	}
-	return config.SiteURL
+	return config.SiteURL + "/auth/callback"
 }
 
 func (a *API) createNewIdentity(tx *storage.Connection, user *models.User, providerType string, identityData map[string]interface{}) (*models.Identity, error) {

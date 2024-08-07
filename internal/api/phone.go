@@ -8,13 +8,13 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/supabase/auth/internal/hooks"
+	"github.com/evecloud/auth/internal/hooks"
 
+	"github.com/evecloud/auth/internal/api/sms_provider"
+	"github.com/evecloud/auth/internal/crypto"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 var e164Format = regexp.MustCompile("^[1-9][0-9]{1,14}$")

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/supabase/auth/internal/models"
+	"github.com/evecloud/auth/internal/models"
 )
 
 var filterColumnMap = map[string][]string{

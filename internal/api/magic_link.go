@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 // MagicLinkParams holds the parameters for a magic link request

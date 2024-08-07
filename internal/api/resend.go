@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	mail "github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/evecloud/auth/internal/api/sms_provider"
+	"github.com/evecloud/auth/internal/conf"
+	mail "github.com/evecloud/auth/internal/mailer"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 )
 
 // ResendConfirmationParams holds the parameters for a resend request

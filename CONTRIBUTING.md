@@ -91,10 +91,10 @@ If you are on macOS Catalina you may [run into issues installing Soda with Brew]
 go install github.com/gobuffalo/pop/soda@latest
 ```
 
-- Clone the Auth [repository](https://github.com/supabase/auth)
+- Clone the Auth [repository](https://github.com/evecloud/auth)
 
 ```
-git clone https://github.com/supabase/auth
+git clone https://github.com/evecloud/auth
 ```
 
 ### Install Auth

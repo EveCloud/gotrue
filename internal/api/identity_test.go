@@ -8,12 +8,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/models"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type IdentityTestSuite struct {

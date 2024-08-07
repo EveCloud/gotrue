@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/evecloud/auth/internal/conf"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 func TestIsValidCodeChallenge(t *testing.T) {
@@ -94,16 +94,6 @@ func TestRequestAud(ts *testing.T) {
 		payload     map[string]interface{}
 		expectedAud string
 	}{
-		{
-			desc: "Valid audience slice",
-			headers: map[string]string{
-				audHeaderName: "my_custom_aud",
-			},
-			payload: map[string]interface{}{
-				"aud": "authenticated",
-			},
-			expectedAud: "my_custom_aud",
-		},
 		{
 			desc: "Valid custom audience",
 			payload: map[string]interface{}{

@@ -7,21 +7,20 @@ import (
 
 	"github.com/didip/tollbooth/v5"
 	"github.com/didip/tollbooth/v5/limiter"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/mailer"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/rs/cors"
 	"github.com/sebest/xff"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 	"github.com/supabase/hibp"
 )
 
 const (
-	audHeaderName  = "X-JWT-AUD"
-	defaultVersion = "unknown version"
+	defaultVersion = "v1.0.0"
 )
 
 var bearerRegexp = regexp.MustCompile(`^(?:B|b)earer (\S+$)`)
@@ -52,20 +51,6 @@ func NewAPI(globalConfig *conf.GlobalConfiguration, db *storage.Connection) *API
 	return NewAPIWithVersion(globalConfig, db, defaultVersion)
 }
 
-func (a *API) deprecationNotices() {
-	config := a.config
-
-	log := logrus.WithField("component", "api")
-
-	if config.JWT.AdminGroupName != "" {
-		log.Warn("DEPRECATION NOTICE: GOTRUE_JWT_ADMIN_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon")
-	}
-
-	if config.JWT.DefaultGroupName != "" {
-		log.Warn("DEPRECATION NOTICE: GOTRUE_JWT_DEFAULT_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon")
-	}
-}
-
 // NewAPIWithVersion creates a new REST API using the specified version
 func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Connection, version string) *API {
 	api := &API{config: globalConfig, db: db, version: version}
@@ -89,8 +74,6 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 			logrus.Infof("Pwned passwords cache is %.2f KB", float64(cache.Cap())/(8*1024.0))
 		}
 	}
-
-	api.deprecationNotices()
 
 	xffmw, _ := xff.Default()
 	logger := observability.NewStructuredLogger(logrus.StandardLogger(), globalConfig)
@@ -328,8 +311,8 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 
 	corsHandler := cors.New(cors.Options{
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
-		AllowedHeaders:   globalConfig.CORS.AllAllowedHeaders([]string{"Accept", "Authorization", "Content-Type", "X-Client-IP", "X-Client-Info", audHeaderName, useCookieHeader, APIVersionHeaderName}),
-		ExposedHeaders:   []string{"X-Total-Count", "Link", APIVersionHeaderName},
+		AllowedHeaders:   globalConfig.CORS.AllAllowedHeaders([]string{"Accept", "Authorization", "Content-Type", "X-Client-IP", "X-Client-Info", useCookieHeader}),
+		ExposedHeaders:   []string{"X-Total-Count", "Link"},
 		AllowCredentials: true,
 	})
 

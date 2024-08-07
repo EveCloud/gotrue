@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/conf"
+	"github.com/evecloud/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -50,7 +50,7 @@ func IsAzureCIAMIssuer(issuer string) bool {
 }
 
 // NewAzureProvider creates a Azure account provider.
-func NewAzureProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewAzureProvider(conf conf.APIConfiguration, ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -84,8 +84,7 @@ func NewAzureProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuth
 				AuthURL:  authHost + "/oauth2/v2.0/authorize",
 				TokenURL: authHost + "/oauth2/v2.0/token",
 			},
-			RedirectURL: ext.RedirectURI,
-			Scopes:      oauthScopes,
+			Scopes: oauthScopes,
 		},
 		ExpectedIssuer: expectedIssuer,
 	}, nil

@@ -14,12 +14,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/hooks"
+	"github.com/evecloud/auth/internal/metering"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/storage"
 )
 
 // AccessTokenClaims is a struct thats used for JWT claims
@@ -255,8 +255,13 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	if params.AuthCode == "" || params.CodeVerifier == "" {
-		return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
+	/*
+		if params.AuthCode == "" || params.CodeVerifier == "" {
+			return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
+		}
+	*/
+	if params.AuthCode == "" {
+		return badRequestError(ErrorCodeValidationFailed, "invalid request: auth code should be non-empty")
 	}
 
 	flowState, err := models.FindFlowStateByAuthCode(db, params.AuthCode)
@@ -274,9 +279,12 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return err
 	}
-	if err := flowState.VerifyPKCE(params.CodeVerifier); err != nil {
-		return badRequestError(ErrorBadCodeVerifier, err.Error())
-	}
+
+	/*
+		if err := flowState.VerifyPKCE(params.CodeVerifier); err != nil {
+			return badRequestError(ErrorBadCodeVerifier, err.Error())
+		}
+	*/
 
 	var token *AccessTokenResponse
 	err = db.Transaction(func(tx *storage.Connection) error {
@@ -333,7 +341,7 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 	claims := &hooks.AccessTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   user.ID.String(),
-			Audience:  jwt.ClaimStrings{user.Aud},
+			Audience:  []string{config.JWT.Aud},
 			IssuedAt:  jwt.NewNumericDate(issuedAt),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    config.JWT.Issuer,

@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/evecloud/auth/internal/api/provider"
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/supabase/auth/internal/api/provider"
 )
 
 const (
@@ -110,7 +110,7 @@ func (ts *ExternalTestSuite) TestSignupExternalAzure() {
 	u, err := url.Parse(w.Header().Get("Location"))
 	ts.Require().NoError(err, "redirect url parse failed")
 	q := u.Query()
-	ts.Equal(ts.Config.External.Azure.RedirectURI, q.Get("redirect_uri"))
+	ts.Equal(ts.Config.API.URL+"/callback", q.Get("redirect_uri"))
 	ts.Equal(ts.Config.External.Azure.ClientID, []string{q.Get("client_id")})
 	ts.Equal("code", q.Get("response_type"))
 	ts.Equal("openid", q.Get("scope"))
@@ -133,7 +133,7 @@ func AzureTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, code string, u
 			*tokenCount++
 			ts.Equal(code, r.FormValue("code"))
 			ts.Equal("authorization_code", r.FormValue("grant_type"))
-			ts.Equal(ts.Config.External.Azure.RedirectURI, r.FormValue("redirect_uri"))
+			ts.Equal(ts.Config.API.URL+"/callback", r.FormValue("redirect_uri"))
 
 			w.Header().Add("Content-Type", "application/json")
 			fmt.Fprintf(w, `{"access_token":"azure_token","expires_in":100000,"id_token":%q}`, mintIDToken(user))

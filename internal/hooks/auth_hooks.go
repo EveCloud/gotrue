@@ -1,10 +1,10 @@
 package hooks
 
 import (
+	"github.com/evecloud/auth/internal/mailer"
+	"github.com/evecloud/auth/internal/models"
 	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
 )
 
 type HookType string

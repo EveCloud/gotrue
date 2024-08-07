@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/observability"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/observability"
 )
 
 func TestHandleResponseErrorWithHTTPError(t *testing.T) {
@@ -56,10 +56,6 @@ func TestHandleResponseErrorWithHTTPError(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodPost, "http://example.com", nil)
 		require.NoError(t, err)
-
-		if example.APIVersion != "" {
-			req.Header.Set(APIVersionHeaderName, example.APIVersion)
-		}
 
 		HandleResponseError(example.HTTPError, rec, req)
 

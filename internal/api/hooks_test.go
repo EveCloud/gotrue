@@ -7,14 +7,14 @@ import (
 
 	"net/http/httptest"
 
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/hooks"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 
 	"gopkg.in/h2non/gock.v1"
 )

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"fmt"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 type GotrueRequest struct {

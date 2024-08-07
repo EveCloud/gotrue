@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/url"
 
+	"github.com/evecloud/auth/internal/models"
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/supabase/auth/internal/models"
 )
 
 type contextKey string

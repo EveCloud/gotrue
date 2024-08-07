@@ -3,8 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -57,10 +55,6 @@ func ParseIDToken(ctx context.Context, provider *oidc.Provider, config *oidc.Con
 		token, data, err = parseGoogleIDToken(token)
 	case IssuerApple:
 		token, data, err = parseAppleIDToken(token)
-	case IssuerLinkedin:
-		token, data, err = parseLinkedinIDToken(token)
-	case IssuerKakao:
-		token, data, err = parseKakaoIDToken(token)
 	default:
 		if IsAzureIssuer(token.Issuer) {
 			token, data, err = parseAzureIDToken(token)
@@ -159,51 +153,6 @@ func parseAppleIDToken(token *oidc.IDToken) (*oidc.IDToken, *UserProvidedData, e
 
 	if len(data.Metadata.CustomClaims) < 1 {
 		data.Metadata.CustomClaims = nil
-	}
-
-	return token, &data, nil
-}
-
-type LinkedinIDTokenClaims struct {
-	jwt.RegisteredClaims
-
-	Email         string `json:"email"`
-	EmailVerified string `json:"email_verified"`
-	FamilyName    string `json:"family_name"`
-	GivenName     string `json:"given_name"`
-	Locale        string `json:"locale"`
-	Picture       string `json:"picture"`
-}
-
-func parseLinkedinIDToken(token *oidc.IDToken) (*oidc.IDToken, *UserProvidedData, error) {
-	var claims LinkedinIDTokenClaims
-	if err := token.Claims(&claims); err != nil {
-		return nil, nil, err
-	}
-
-	var data UserProvidedData
-	emailVerified, err := strconv.ParseBool(claims.EmailVerified)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if claims.Email != "" {
-		data.Emails = append(data.Emails, Email{
-			Email:    claims.Email,
-			Verified: emailVerified,
-			Primary:  true,
-		})
-	}
-
-	data.Metadata = &Claims{
-		Issuer:     token.Issuer,
-		Subject:    token.Subject,
-		Name:       strings.TrimSpace(claims.GivenName + " " + claims.FamilyName),
-		GivenName:  claims.GivenName,
-		FamilyName: claims.FamilyName,
-		Locale:     claims.Locale,
-		Picture:    claims.Picture,
-		ProviderId: token.Subject,
 	}
 
 	return token, &data, nil
@@ -309,43 +258,6 @@ func parseAzureIDToken(token *oidc.IDToken) (*oidc.IDToken, *UserProvidedData, e
 		for _, claim := range removeAzureClaimsFromCustomClaims {
 			delete(data.Metadata.CustomClaims, claim)
 		}
-	}
-
-	return token, &data, nil
-}
-
-type KakaoIDTokenClaims struct {
-	jwt.RegisteredClaims
-
-	Email    string `json:"email"`
-	Nickname string `json:"nickname"`
-	Picture  string `json:"picture"`
-}
-
-func parseKakaoIDToken(token *oidc.IDToken) (*oidc.IDToken, *UserProvidedData, error) {
-	var claims KakaoIDTokenClaims
-
-	if err := token.Claims(&claims); err != nil {
-		return nil, nil, err
-	}
-
-	var data UserProvidedData
-
-	if claims.Email != "" {
-		data.Emails = append(data.Emails, Email{
-			Email:    claims.Email,
-			Verified: true,
-			Primary:  true,
-		})
-	}
-
-	data.Metadata = &Claims{
-		Issuer:            token.Issuer,
-		Subject:           token.Subject,
-		Name:              claims.Nickname,
-		PreferredUsername: claims.Nickname,
-		ProviderId:        token.Subject,
-		Picture:           claims.Picture,
 	}
 
 	return token, &data, nil

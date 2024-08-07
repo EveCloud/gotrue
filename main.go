@@ -7,10 +7,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/evecloud/auth/cmd"
+	"github.com/evecloud/auth/internal/api"
+	"github.com/evecloud/auth/internal/observability"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/cmd"
-	"github.com/supabase/auth/internal/api"
-	"github.com/supabase/auth/internal/observability"
 )
 
 func init() {

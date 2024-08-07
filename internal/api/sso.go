@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/crewjam/saml"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 type SingleSignOnParams struct {

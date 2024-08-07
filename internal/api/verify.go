@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evecloud/auth/internal/api/provider"
+	"github.com/evecloud/auth/internal/api/sms_provider"
+	"github.com/evecloud/auth/internal/crypto"
+	mail "github.com/evecloud/auth/internal/mailer"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/storage"
+	"github.com/evecloud/auth/internal/utilities"
 	"github.com/fatih/structs"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/crypto"
-	mail "github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 const (

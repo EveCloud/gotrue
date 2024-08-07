@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/observability"
+	"github.com/evecloud/auth/internal/security"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/security"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -204,7 +204,7 @@ func (a *API) isValidExternalHost(w http.ResponseWriter, req *http.Request) (con
 	var u *url.URL
 	var err error
 
-	baseUrl := config.API.ExternalURL
+	baseUrl := config.API.URL
 	xForwardedHost := req.Header.Get("X-Forwarded-Host")
 	xForwardedProto := req.Header.Get("X-Forwarded-Proto")
 	if xForwardedHost != "" && xForwardedProto != "" {
@@ -216,7 +216,7 @@ func (a *API) isValidExternalHost(w http.ResponseWriter, req *http.Request) (con
 		// fallback to the default hostname
 		log := observability.GetLogEntry(req).Entry
 		log.WithField("request_url", baseUrl).Warn(err)
-		if u, err = url.ParseRequestURI(config.API.ExternalURL); err != nil {
+		if u, err = url.ParseRequestURI(config.API.URL); err != nil {
 			return ctx, err
 		}
 	}

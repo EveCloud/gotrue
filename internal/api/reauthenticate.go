@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/evecloud/auth/internal/api/sms_provider"
+	"github.com/evecloud/auth/internal/conf"
+	"github.com/evecloud/auth/internal/crypto"
+	"github.com/evecloud/auth/internal/models"
+	"github.com/evecloud/auth/internal/storage"
 )
 
 const InvalidNonceMessage = "Nonce has expired or is invalid"
