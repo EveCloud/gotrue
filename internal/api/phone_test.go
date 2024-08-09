@@ -165,7 +165,7 @@ func (ts *PhoneTestSuite) TestMissingSmsProviderConfig() {
 	require.NoError(ts.T(), ts.API.db.Create(s))
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
 	require.NoError(ts.T(), err)
 
 	cases := []struct {
@@ -275,7 +275,7 @@ func (ts *PhoneTestSuite) TestSendSMSHook() {
 	require.NoError(ts.T(), ts.API.db.Create(s))
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
 	require.NoError(ts.T(), err)
 
 	// We setup a job table to enqueue SMS requests to send. Similar in spirit to the pg_boss postgres extension

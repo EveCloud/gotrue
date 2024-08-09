@@ -66,7 +66,7 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 	defer db.Close()
 
 	aud := getAudience(config)
-	if user, err := models.IsDuplicatedEmail(db, args[0], aud, nil); user != nil {
+	if user, err := models.IsDuplicatedEmail(db, args[0], nil); user != nil {
 		logrus.Fatalf("Error creating new user: user already exists")
 	} else if err != nil {
 		logrus.Fatalf("Error checking user email: %+v", err)
@@ -81,16 +81,6 @@ func adminCreateUser(config *conf.GlobalConfiguration, args []string) {
 		var terr error
 		if terr = tx.Create(user); terr != nil {
 			return terr
-		}
-
-		if len(args) > 2 {
-			if terr = user.SetRole(tx, args[2]); terr != nil {
-				return terr
-			}
-		} else if isAdmin {
-			if terr = user.SetRole(tx, config.JWT.AdminGroupName); terr != nil {
-				return terr
-			}
 		}
 
 		if config.Mailer.Autoconfirm || autoconfirm {
@@ -114,7 +104,7 @@ func adminDeleteUser(config *conf.GlobalConfiguration, args []string) {
 	}
 	defer db.Close()
 
-	user, err := models.FindUserByEmailAndAudience(db, args[0], getAudience(config))
+	user, err := models.FindUserByEmail(db, args[0])
 	if err != nil {
 		userID := uuid.Must(uuid.FromString(args[0]))
 		user, err = models.FindUserByID(db, userID)

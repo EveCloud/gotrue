@@ -13,7 +13,6 @@ import (
 
 	"github.com/evecloud/auth/internal/conf"
 	"github.com/evecloud/auth/internal/models"
-	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -42,18 +41,6 @@ func TestSSO(t *testing.T) {
 	if config.SAML.Enabled {
 		suite.Run(t, ts)
 	}
-}
-
-func (ts *SSOTestSuite) SetupTest() {
-	models.TruncateAll(ts.API.db)
-
-	claims := &AccessTokenClaims{
-		Role: "supabase_admin",
-	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
-	require.NoError(ts.T(), err, "Error generating admin jwt")
-
-	ts.AdminJWT = token
 }
 
 func (ts *SSOTestSuite) TestNonAdminJWT() {

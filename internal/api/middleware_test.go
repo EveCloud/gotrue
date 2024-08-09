@@ -14,7 +14,6 @@ import (
 	"github.com/didip/tollbooth/v5"
 	"github.com/didip/tollbooth/v5/limiter"
 	"github.com/evecloud/auth/internal/conf"
-	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -48,11 +47,6 @@ func TestMiddlewareFunctions(t *testing.T) {
 func (ts *MiddlewareTestSuite) TestVerifyCaptchaValid() {
 	ts.Config.Security.Captcha.Enabled = true
 
-	adminClaims := &AccessTokenClaims{
-		Role: "supabase_admin",
-	}
-	adminJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, adminClaims).SignedString([]byte(ts.Config.JWT.Secret))
-	require.NoError(ts.T(), err)
 	cases := []struct {
 		desc             string
 		adminJwt         string
@@ -69,18 +63,6 @@ func (ts *MiddlewareTestSuite) TestVerifyCaptchaValid() {
 			"Valid captcha response",
 			"",
 			CaptchaResponse,
-			"turnstile",
-		},
-		{
-			"Ignore captcha if admin role is present",
-			adminJwt,
-			"",
-			"hcaptcha",
-		},
-		{
-			"Ignore captcha if admin role is present",
-			adminJwt,
-			"",
 			"turnstile",
 		},
 	}

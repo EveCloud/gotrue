@@ -20,7 +20,6 @@ import (
 
 type AdminUserParams struct {
 	Id           string                 `json:"id"`
-	Aud          string                 `json:"aud"`
 	Role         string                 `json:"role"`
 	Email        string                 `json:"email"`
 	Phone        string                 `json:"phone"`
@@ -44,7 +43,6 @@ type adminUserUpdateFactorParams struct {
 
 type AdminListUsersResponse struct {
 	Users []*models.User `json:"users"`
-	Aud   string         `json:"aud"`
 }
 
 func (a *API) loadUser(w http.ResponseWriter, r *http.Request) (context.Context, error) {
@@ -104,7 +102,6 @@ func (a *API) getAdminParams(r *http.Request) (*AdminUserParams, error) {
 func (a *API) adminUsers(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	aud := a.requestAud(ctx, r)
 
 	pageParams, err := paginate(r)
 	if err != nil {
@@ -118,7 +115,7 @@ func (a *API) adminUsers(w http.ResponseWriter, r *http.Request) error {
 
 	filter := r.URL.Query().Get("filter")
 
-	users, err := models.FindUsersInAudience(db, aud, pageParams, sortParams, filter)
+	users, err := models.FindUsers(db, pageParams, sortParams, filter)
 	if err != nil {
 		return internalServerError("Database error finding users").WithInternalError(err)
 	}
@@ -126,7 +123,6 @@ func (a *API) adminUsers(w http.ResponseWriter, r *http.Request) error {
 
 	return sendJSON(w, http.StatusOK, AdminListUsersResponse{
 		Users: users,
-		Aud:   aud,
 	})
 }
 
@@ -188,12 +184,6 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	err = db.Transaction(func(tx *storage.Connection) error {
-		if params.Role != "" {
-			if terr := user.SetRole(tx, params.Role); terr != nil {
-				return terr
-			}
-		}
-
 		if params.EmailConfirm {
 			if terr := user.Confirm(tx); terr != nil {
 				return terr
@@ -324,17 +314,11 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	config := a.config
 
 	adminUser := getAdminUser(ctx)
 	params, err := a.getAdminParams(r)
 	if err != nil {
 		return err
-	}
-
-	aud := a.requestAud(ctx, r)
-	if params.Aud != "" {
-		aud = params.Aud
 	}
 
 	if params.Email == "" && params.Phone == "" {
@@ -347,7 +331,7 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if user, err := models.IsDuplicatedEmail(db, params.Email, aud, nil); err != nil {
+		if user, err := models.IsDuplicatedEmail(db, params.Email, nil); err != nil {
 			return internalServerError("Database error checking email").WithInternalError(err)
 		} else if user != nil {
 			return unprocessableEntityError(ErrorCodeEmailExists, DuplicateEmailMsg)
@@ -360,7 +344,7 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		if exists, err := models.IsDuplicatedPhone(db, params.Phone, aud); err != nil {
+		if exists, err := models.IsDuplicatedPhone(db, params.Phone, ""); err != nil {
 			return internalServerError("Database error checking phone").WithInternalError(err)
 		} else if exists {
 			return unprocessableEntityError(ErrorCodePhoneExists, "Phone number already registered by another user")
@@ -382,9 +366,9 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 
 	var user *models.User
 	if params.PasswordHash != "" {
-		user, err = models.NewUserWithPasswordHash(params.Phone, params.Email, params.PasswordHash, aud, params.UserMetaData)
+		user, err = models.NewUserWithPasswordHash(params.Phone, params.Email, params.PasswordHash, "", params.UserMetaData)
 	} else {
-		user, err = models.NewUser(params.Phone, params.Email, *params.Password, aud, params.UserMetaData)
+		user, err = models.NewUser(params.Phone, params.Email, *params.Password, "", params.UserMetaData)
 	}
 
 	if err != nil {
@@ -461,14 +445,6 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 			"user_email": user.Email,
 			"user_phone": user.Phone,
 		}); terr != nil {
-			return terr
-		}
-
-		role := config.JWT.DefaultGroupName
-		if params.Role != "" {
-			role = params.Role
-		}
-		if terr := user.SetRole(tx, role); terr != nil {
 			return terr
 		}
 

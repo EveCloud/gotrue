@@ -79,7 +79,7 @@ func (a *API) Resend(w http.ResponseWriter, r *http.Request) error {
 	var err error
 	aud := a.requestAud(ctx, r)
 	if params.Email != "" {
-		user, err = models.FindUserByEmailAndAudience(db, params.Email, aud)
+		user, err = models.FindUserByEmail(db, params.Email)
 	} else if params.Phone != "" {
 		user, err = models.FindUserByPhoneAndAudience(db, params.Phone, aud)
 	}

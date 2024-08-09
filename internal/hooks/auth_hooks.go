@@ -64,51 +64,17 @@ const MinimumViableTokenSchema = `{
     "sub": {
       "type": "string"
     },
-    "email": {
-      "type": "string"
-    },
-    "phone": {
-      "type": "string"
-    },
-    "app_metadata": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "user_metadata": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "role": {
-      "type": "string"
-    },
-    "aal": {
-      "type": "string"
-    },
-    "amr": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
-    },
-    "session_id": {
+    "sid": {
       "type": "string"
     }
   },
-  "required": ["aud", "exp", "iat", "sub", "email", "phone", "role", "aal", "session_id", "is_anonymous"]
+  "required": ["aud", "exp", "iat", "sub", "sid"]
 }`
 
 // AccessTokenClaims is a struct thats used for JWT claims
 type AccessTokenClaims struct {
 	jwt.RegisteredClaims
-	Email                         string                 `json:"email"`
-	Phone                         string                 `json:"phone"`
-	AppMetaData                   map[string]interface{} `json:"app_metadata"`
-	UserMetaData                  map[string]interface{} `json:"user_metadata"`
-	Role                          string                 `json:"role"`
-	AuthenticatorAssuranceLevel   string                 `json:"aal,omitempty"`
-	AuthenticationMethodReference []models.AMREntry      `json:"amr,omitempty"`
-	SessionId                     string                 `json:"session_id,omitempty"`
-	IsAnonymous                   bool                   `json:"is_anonymous"`
+	SessionId string `json:"sid,omitempty"`
 }
 
 type MFAVerificationAttemptInput struct {

@@ -31,8 +31,7 @@ func (a *API) Invite(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	aud := a.requestAud(ctx, r)
-	user, err := models.FindUserByEmailAndAudience(db, params.Email, aud)
+	user, err := models.FindUserByEmail(db, params.Email)
 	if err != nil && !models.IsNotFoundError(err) {
 		return internalServerError("Database error finding user").WithInternalError(err)
 	}
@@ -46,7 +45,6 @@ func (a *API) Invite(w http.ResponseWriter, r *http.Request) error {
 			signupParams := SignupParams{
 				Email:    params.Email,
 				Data:     params.Data,
-				Aud:      aud,
 				Provider: "email",
 			}
 

@@ -278,7 +278,7 @@ func (ts *OtpTestSuite) TestSubsequentOtp() {
 
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 
-	newUser, err := models.FindUserByEmailAndAudience(ts.API.db, userEmail, ts.Config.JWT.Aud)
+	newUser, err := models.FindUserByEmail(ts.API.db, userEmail)
 	require.NoError(ts.T(), err)
 	require.NotEmpty(ts.T(), newUser.ConfirmationToken)
 	require.NotEmpty(ts.T(), newUser.ConfirmationSentAt)
@@ -301,7 +301,7 @@ func (ts *OtpTestSuite) TestSubsequentOtp() {
 
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, userEmail, ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmail(ts.API.db, userEmail)
 	require.NoError(ts.T(), err)
 	require.NotEmpty(ts.T(), user.ConfirmationToken)
 	require.NotEmpty(ts.T(), user.ConfirmationSentAt)

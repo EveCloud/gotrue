@@ -73,7 +73,7 @@ func (ts *IdentityTestSuite) SetupTest() {
 }
 
 func (ts *IdentityTestSuite) TestLinkIdentityToUser() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "one@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "one@example.com")
 	require.NoError(ts.T(), err)
 	ctx := withTargetUser(context.Background(), u)
 
@@ -107,10 +107,10 @@ func (ts *IdentityTestSuite) TestLinkIdentityToUser() {
 
 func (ts *IdentityTestSuite) TestUnlinkIdentityError() {
 	ts.Config.Security.ManualLinkingEnabled = true
-	userWithOneIdentity, err := models.FindUserByEmailAndAudience(ts.API.db, "one@example.com", ts.Config.JWT.Aud)
+	userWithOneIdentity, err := models.FindUserByEmail(ts.API.db, "one@example.com")
 	require.NoError(ts.T(), err)
 
-	userWithTwoIdentities, err := models.FindUserByEmailAndAudience(ts.API.db, "two@example.com", ts.Config.JWT.Aud)
+	userWithTwoIdentities, err := models.FindUserByEmail(ts.API.db, "two@example.com")
 	require.NoError(ts.T(), err)
 	cases := []struct {
 		desc          string
@@ -177,7 +177,7 @@ func (ts *IdentityTestSuite) TestUnlinkIdentity() {
 		ts.Run(c.desc, func() {
 			// teardown and reset the state of the db to prevent running into errors
 			ts.SetupTest()
-			u, err := models.FindUserByEmailAndAudience(ts.API.db, "two@example.com", ts.Config.JWT.Aud)
+			u, err := models.FindUserByEmail(ts.API.db, "two@example.com")
 			require.NoError(ts.T(), err)
 
 			identity, err := models.FindIdentityByIdAndProvider(ts.API.db, u.ID.String(), c.provider)
@@ -220,7 +220,7 @@ func (ts *IdentityTestSuite) generateAccessTokenAndSession(u *models.User) strin
 	require.NoError(ts.T(), ts.API.db.Create(s))
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, u, &s.ID, models.PasswordGrant)
 	require.NoError(ts.T(), err)
 	return token
 

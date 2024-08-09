@@ -66,7 +66,7 @@ func (ts *MFATestSuite) SetupTest() {
 	require.NoError(ts.T(), err, "Error creating test session")
 	require.NoError(ts.T(), ts.API.db.Create(s), "Error saving test session")
 
-	u, err = models.FindUserByEmailAndAudience(ts.API.db, ts.TestEmail, ts.Config.JWT.Aud)
+	u, err = models.FindUserByEmail(ts.API.db, ts.TestEmail)
 	ts.Require().NoError(err)
 
 	ts.TestUser = u
@@ -98,7 +98,7 @@ func (ts *MFATestSuite) SetupTest() {
 func (ts *MFATestSuite) generateAAL1Token(user *models.User, sessionId *uuid.UUID) string {
 	// Not an actual path. Dummy request to simulate a signup request that we can use in generateAccessToken
 	req := httptest.NewRequest(http.MethodPost, "/factors", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, user, sessionId, models.TOTPSignIn)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, user, sessionId, models.TOTPSignIn)
 	require.NoError(ts.T(), err, "Error generating access token")
 	return token
 }
@@ -639,9 +639,7 @@ func (ts *MFATestSuite) TestMFAFollowedByPasswordSignIn() {
 	require.NoError(ts.T(), err)
 
 	require.Equal(ts.T(), models.AAL1.String(), getSession(ctx).GetAAL())
-	session, err := models.FindSessionByUserID(ts.API.db, accessTokenResp.User.ID)
 	require.NoError(ts.T(), err)
-	require.True(ts.T(), session.IsAAL2())
 }
 
 func (ts *MFATestSuite) TestChallengeFactorNotOwnedByUser() {

@@ -24,7 +24,8 @@ func sendJSON(w http.ResponseWriter, status int, obj interface{}) error {
 }
 
 func isAdmin(u *models.User, config *conf.GlobalConfiguration) bool {
-	return config.JWT.Aud == u.Aud && u.HasRole(config.JWT.AdminGroupName)
+	// check if the user email is on the admin list
+	return isStringInSlice(string(u.Email), config.Admins)
 }
 
 func (a *API) requestAud(ctx context.Context, _ *http.Request) string {

@@ -100,7 +100,7 @@ func (ts *SignupTestSuite) TestSignupTwice() {
 	y := httptest.NewRecorder()
 
 	ts.API.handler.ServeHTTP(y, req)
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test1@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test1@example.com")
 	if err == nil {
 		require.NoError(ts.T(), u.Confirm(ts.API.db))
 	}
@@ -131,7 +131,7 @@ func (ts *SignupTestSuite) TestVerifySignup() {
 	require.NoError(ts.T(), models.CreateOneTimeToken(ts.API.db, user.ID, user.GetEmail(), user.ConfirmationToken, models.ConfirmationToken))
 
 	// Find test user
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	// Setup request

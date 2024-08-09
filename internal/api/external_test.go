@@ -40,7 +40,7 @@ func (ts *ExternalTestSuite) SetupTest() {
 
 func (ts *ExternalTestSuite) createUser(providerId string, email string, name string, avatar string, confirmationToken string) (*models.User, error) {
 	// Cleanup existing user, if they already exist
-	if u, _ := models.FindUserByEmailAndAudience(ts.API.db, email, ts.Config.JWT.Aud); u != nil {
+	if u, _ := models.FindUserByEmail(ts.API.db, email); u != nil {
 		require.NoError(ts.T(), ts.API.db.Destroy(u), "Error deleting user")
 	}
 
@@ -169,7 +169,7 @@ func assertAuthorizationSuccess(ts *ExternalTestSuite, u *url.URL, tokenCount in
 	}
 
 	// ensure user has been created with metadata
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, email, ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmail(ts.API.db, email)
 	ts.Require().NoError(err)
 	ts.Equal(providerId, user.UserMetaData["provider_id"])
 	ts.Equal(name, user.UserMetaData["full_name"])
@@ -195,7 +195,7 @@ func assertAuthorizationFailure(ts *ExternalTestSuite, u *url.URL, errorDescript
 	ts.Empty(v.Get("token_type"))
 
 	// ensure user is nil
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, email, ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmail(ts.API.db, email)
 	ts.Require().Error(err, "User not found")
 	ts.Require().Nil(user)
 }

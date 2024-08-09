@@ -220,7 +220,7 @@ func (a *API) shouldCreateUser(r *http.Request, params *OtpParams) (bool, error)
 			if err != nil {
 				return false, err
 			}
-			_, err = models.FindUserByEmailAndAudience(db, params.Email, aud)
+			_, err = models.FindUserByEmail(db, params.Email)
 		} else if params.Phone != "" {
 			params.Phone, err = validatePhone(params.Phone)
 			if err != nil {

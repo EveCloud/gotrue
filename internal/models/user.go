@@ -22,7 +22,6 @@ type User struct {
 	ID uuid.UUID `json:"id" db:"id"`
 
 	Aud       string             `json:"aud" db:"aud"`
-	Role      string             `json:"role" db:"role"`
 	Email     storage.NullString `json:"email" db:"email"`
 	IsSSOUser bool               `json:"-" db:"is_sso_user"`
 
@@ -194,17 +193,6 @@ func (u *User) IsPhoneConfirmed() bool {
 	return u.PhoneConfirmedAt != nil
 }
 
-// SetRole sets the users Role to roleName
-func (u *User) SetRole(tx *storage.Connection, roleName string) error {
-	u.Role = strings.TrimSpace(roleName)
-	return tx.UpdateOnly(u, "role")
-}
-
-// HasRole returns true when the users role is set to roleName
-func (u *User) HasRole(roleName string) bool {
-	return u.Role == roleName
-}
-
 // GetEmail returns the user's email as a string
 func (u *User) GetEmail() string {
 	return string(u.Email)
@@ -281,7 +269,7 @@ func (u *User) UpdateUserEmailFromIdentities(tx *storage.Connection) error {
 
 	var primaryIdentity *Identity
 	for _, i := range identities {
-		if _, terr := FindUserByEmailAndAudience(tx, i.GetEmail(), u.Aud); terr != nil {
+		if _, terr := FindUserByEmail(tx, i.GetEmail()); terr != nil {
 			if IsNotFoundError(terr) {
 				// the identity's email is not used by another user
 				// so we can set it as the primary identity
@@ -590,9 +578,9 @@ func findUser(tx *storage.Connection, query string, args ...interface{}) (*User,
 	return obj, nil
 }
 
-// FindUserByEmailAndAudience finds a user with the matching email and audience.
-func FindUserByEmailAndAudience(tx *storage.Connection, email, aud string) (*User, error) {
-	return findUser(tx, "instance_id = ? and LOWER(email) = ? and aud = ? and is_sso_user = false", uuid.Nil, strings.ToLower(email), aud)
+// FindUserByEmail finds a user with the matching email.
+func FindUserByEmail(tx *storage.Connection, email string) (*User, error) {
+	return findUser(tx, "instance_id = ? and LOWER(email) = ? and is_sso_user = false", uuid.Nil, strings.ToLower(email))
 }
 
 // FindUserByPhoneAndAudience finds a user with the matching email and audience.
@@ -665,9 +653,9 @@ func FindUserWithRefreshToken(tx *storage.Connection, token string, forUpdate bo
 }
 
 // FindUsersInAudience finds users with the matching audience.
-func FindUsersInAudience(tx *storage.Connection, aud string, pageParams *Pagination, sortParams *SortParams, filter string) ([]*User, error) {
+func FindUsers(tx *storage.Connection, pageParams *Pagination, sortParams *SortParams, filter string) ([]*User, error) {
 	users := []*User{}
-	q := tx.Q().Where("instance_id = ? and aud = ?", uuid.Nil, aud)
+	q := tx.Q().Where("instance_id = ?", uuid.Nil)
 
 	if filter != "" {
 		lf := "%" + filter + "%"
@@ -694,7 +682,7 @@ func FindUsersInAudience(tx *storage.Connection, aud string, pageParams *Paginat
 
 // IsDuplicatedEmail returns whether a user exists with a matching email and audience.
 // If a currentUser is provided, we will need to filter out any identities that belong to the current user.
-func IsDuplicatedEmail(tx *storage.Connection, email, aud string, currentUser *User) (*User, error) {
+func IsDuplicatedEmail(tx *storage.Connection, email string, currentUser *User) (*User, error) {
 	var identities []Identity
 
 	if err := tx.Eager().Q().Where("email = ?", strings.ToLower(email)).All(&identities); err != nil {
@@ -714,26 +702,9 @@ func IsDuplicatedEmail(tx *storage.Connection, email, aud string, currentUser *U
 		}
 	}
 
-	var currentUserId uuid.UUID
-	if currentUser != nil {
-		currentUserId = currentUser.ID
-	}
-
-	for _, userID := range userIDs {
-		if userID != currentUserId {
-			user, err := FindUserByID(tx, userID)
-			if err != nil {
-				return nil, errors.Wrap(err, "unable to find user from email identity for duplicates")
-			}
-			if user.Aud == aud {
-				return user, nil
-			}
-		}
-	}
-
 	// out of an abundance of caution, if nothing was found via the
 	// identities table we also do a final check on the users table
-	user, err := FindUserByEmailAndAudience(tx, email, aud)
+	user, err := FindUserByEmail(tx, email)
 	if err != nil && !IsNotFoundError(err) {
 		return nil, errors.Wrap(err, "unable to find user email address for duplicates")
 	}

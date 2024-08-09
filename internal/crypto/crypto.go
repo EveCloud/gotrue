@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"math/big"
 	"strconv"
@@ -45,8 +46,10 @@ func GenerateOtp(digits int) (string, error) {
 	// adds a variable zero-padding to the left to ensure otp is uniformly random
 	expr := "%0" + strconv.Itoa(digits) + "v"
 	otp := fmt.Sprintf(expr, val.String())
+	log.Printf("Generated OTP: %s", otp)
 	return otp, nil
 }
+
 func GenerateTokenHash(emailOrPhone, otp string) string {
 	return fmt.Sprintf("%x", sha256.Sum224([]byte(emailOrPhone+otp)))
 }

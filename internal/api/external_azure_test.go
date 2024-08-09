@@ -111,7 +111,7 @@ func (ts *ExternalTestSuite) TestSignupExternalAzure() {
 	ts.Require().NoError(err, "redirect url parse failed")
 	q := u.Query()
 	ts.Equal(ts.Config.API.URL+"/callback", q.Get("redirect_uri"))
-	ts.Equal(ts.Config.External.Azure.ClientID, []string{q.Get("client_id")})
+	ts.Equal(ts.Config.External.Microsoft.ClientID, []string{q.Get("client_id")})
 	ts.Equal("code", q.Get("response_type"))
 	ts.Equal("openid", q.Get("scope"))
 
@@ -143,8 +143,8 @@ func AzureTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, code string, u
 		}
 	}))
 
-	ts.Config.External.Azure.URL = server.URL
-	ts.Config.External.Azure.ApiURL = server.URL
+	ts.Config.External.Microsoft.URL = server.URL
+	ts.Config.External.Microsoft.ApiURL = server.URL
 
 	return server
 }

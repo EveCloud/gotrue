@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,35 +17,21 @@ import (
 	"github.com/evecloud/auth/internal/hooks"
 	"github.com/evecloud/auth/internal/metering"
 	"github.com/evecloud/auth/internal/models"
-	"github.com/evecloud/auth/internal/observability"
 	"github.com/evecloud/auth/internal/storage"
 )
 
 // AccessTokenClaims is a struct thats used for JWT claims
 type AccessTokenClaims struct {
 	jwt.RegisteredClaims
-	Email                         string                 `json:"email"`
-	Phone                         string                 `json:"phone"`
-	AppMetaData                   map[string]interface{} `json:"app_metadata"`
-	UserMetaData                  map[string]interface{} `json:"user_metadata"`
-	Role                          string                 `json:"role"`
-	AuthenticatorAssuranceLevel   string                 `json:"aal,omitempty"`
-	AuthenticationMethodReference []models.AMREntry      `json:"amr,omitempty"`
-	SessionId                     string                 `json:"session_id,omitempty"`
-	IsAnonymous                   bool                   `json:"is_anonymous"`
+	SessionId string `json:"sid,omitempty"`
 }
 
 // AccessTokenResponse represents an OAuth2 success response
 type AccessTokenResponse struct {
-	Token                string             `json:"access_token"`
-	TokenType            string             `json:"token_type"` // Bearer
-	ExpiresIn            int                `json:"expires_in"`
-	ExpiresAt            int64              `json:"expires_at"`
-	RefreshToken         string             `json:"refresh_token"`
-	User                 *models.User       `json:"user"`
-	ProviderAccessToken  string             `json:"provider_token,omitempty"`
-	ProviderRefreshToken string             `json:"provider_refresh_token,omitempty"`
-	WeakPassword         *WeakPasswordError `json:"weak_password,omitempty"`
+	Token        string `json:"access_token"`
+	TokenType    string `json:"token_type"` // Bearer
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // AsRedirectURL encodes the AccessTokenResponse as a redirect URL that
@@ -55,7 +40,6 @@ func (r *AccessTokenResponse) AsRedirectURL(redirectURL string, extraParams url.
 	extraParams.Set("access_token", r.Token)
 	extraParams.Set("token_type", r.TokenType)
 	extraParams.Set("expires_in", strconv.Itoa(r.ExpiresIn))
-	extraParams.Set("expires_at", strconv.FormatInt(r.ExpiresAt, 10))
 	extraParams.Set("refresh_token", r.RefreshToken)
 
 	return redirectURL + "#" + extraParams.Encode()
@@ -122,7 +106,7 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 		if !config.External.Email.Enabled {
 			return unprocessableEntityError(ErrorCodeEmailProviderDisabled, "Email logins are disabled")
 		}
-		user, err = models.FindUserByEmailAndAudience(db, params.Email, aud)
+		user, err = models.FindUserByEmail(db, params.Email)
 	} else if params.Phone != "" {
 		provider = "phone"
 		if !config.External.Phone.Enabled {
@@ -154,16 +138,7 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	var weakPasswordError *WeakPasswordError
 	if isValidPassword {
-		if err := a.checkPasswordStrength(ctx, params.Password); err != nil {
-			if wpe, ok := err.(*WeakPasswordError); ok {
-				weakPasswordError = wpe
-			} else {
-				observability.GetLogEntry(r).Entry.WithError(err).Warn("Password strength check on sign-in failed")
-			}
-		}
-
 		if shouldReEncrypt {
 			if err := user.SetPassword(ctx, params.Password, true, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey); err != nil {
 				return err
@@ -225,16 +200,11 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 			return terr
 		}
 
-		if terr = a.setCookieTokens(config, token, false, w); terr != nil {
-			return internalServerError("Failed to set JWT cookie. %s", terr)
-		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-
-	token.WeakPassword = weakPasswordError
 
 	metering.RecordLogin("password", user.ID)
 	return sendJSON(w, http.StatusOK, token)
@@ -257,10 +227,6 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 
 	if params.AuthCode == "" || params.CodeVerifier == "" {
 		return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
-	}
-
-	if params.AuthCode == "" {
-		return badRequestError(ErrorCodeValidationFailed, "invalid request: auth code should be non-empty")
 	}
 
 	flowState, err := models.FindFlowStateByAuthCode(db, params.AuthCode)
@@ -299,12 +265,6 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 		if terr != nil {
 			return oauthError("server_error", terr.Error())
 		}
-		token.ProviderAccessToken = flowState.ProviderAccessToken
-		// Because not all providers give out a refresh token
-		// See corresponding OAuth2 spec: <https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1>
-		if flowState.ProviderRefreshToken != "" {
-			token.ProviderRefreshToken = flowState.ProviderRefreshToken
-		}
 		if terr = tx.Destroy(flowState); terr != nil {
 			return err
 		}
@@ -317,20 +277,12 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	return sendJSON(w, http.StatusOK, token)
 }
 
-func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user *models.User, sessionId *uuid.UUID, authenticationMethod models.AuthenticationMethod) (string, int64, error) {
+func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user *models.User, sessionId *uuid.UUID, authenticationMethod models.AuthenticationMethod) (string, error) {
 	config := a.config
 	if sessionId == nil {
-		return "", 0, internalServerError("Session is required to issue access token")
+		return "", internalServerError("Session is required to issue access token")
 	}
 	sid := sessionId.String()
-	session, terr := models.FindSessionByID(tx, *sessionId, false)
-	if terr != nil {
-		return "", 0, terr
-	}
-	aal, amr, terr := session.CalculateAALAndAMR(user)
-	if terr != nil {
-		return "", 0, terr
-	}
 
 	issuedAt := time.Now().UTC()
 	expiresAt := issuedAt.Add(time.Second * time.Duration(config.JWT.Exp))
@@ -343,15 +295,7 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    config.JWT.Issuer,
 		},
-		Email:                         user.GetEmail(),
-		Phone:                         user.GetPhone(),
-		AppMetaData:                   user.AppMetaData,
-		UserMetaData:                  user.UserMetaData,
-		Role:                          user.Role,
-		SessionId:                     sid,
-		AuthenticatorAssuranceLevel:   aal.String(),
-		AuthenticationMethodReference: amr,
-		IsAnonymous:                   user.IsAnonymous,
+		SessionId: sid,
 	}
 
 	var token *jwt.Token
@@ -367,14 +311,14 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 
 		err := a.invokeHook(tx, r, &input, &output)
 		if err != nil {
-			return "", 0, err
+			return "", err
 		}
 		gotrueClaims = jwt.MapClaims(output.Claims)
 	}
 
 	signingJwk, err := conf.GetSigningJwk(&config.JWT)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
 	signingMethod := conf.GetSigningAlg(signingJwk)
@@ -393,14 +337,14 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 	jwt.MarshalSingleStringAsArray = false
 	signingKey, err := conf.GetSigningKey(signingJwk)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 	signed, err := token.SignedString(signingKey)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	return signed, expiresAt.Unix(), nil
+	return signed, nil
 }
 
 func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {
@@ -410,7 +354,6 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 	user.LastSignInAt = &now
 
 	var tokenString string
-	var expiresAt int64
 	var refreshToken *models.RefreshToken
 
 	err := conn.Transaction(func(tx *storage.Connection) error {
@@ -426,7 +369,7 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 			return terr
 		}
 
-		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, refreshToken.SessionId, authenticationMethod)
+		tokenString, terr = a.generateAccessToken(r, tx, user, refreshToken.SessionId, authenticationMethod)
 		if terr != nil {
 			// Account for Hook Error
 			httpErr, ok := terr.(*HTTPError)
@@ -443,11 +386,9 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 
 	return &AccessTokenResponse{
 		Token:        tokenString,
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		ExpiresIn:    config.JWT.Exp,
-		ExpiresAt:    expiresAt,
 		RefreshToken: refreshToken.Token,
-		User:         user,
 	}, nil
 }
 
@@ -455,7 +396,6 @@ func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection,
 	ctx := r.Context()
 	config := a.config
 	var tokenString string
-	var expiresAt int64
 	var refreshToken *models.RefreshToken
 	currentClaims := getClaims(ctx)
 	sessionId, err := uuid.FromString(currentClaims.SessionId)
@@ -492,7 +432,7 @@ func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection,
 			return err
 		}
 
-		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, &session.ID, authenticationMethod)
+		tokenString, terr = a.generateAccessToken(r, tx, user, &session.ID, authenticationMethod)
 		if terr != nil {
 			httpErr, ok := terr.(*HTTPError)
 			if ok {
@@ -507,65 +447,10 @@ func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection,
 	}
 	return &AccessTokenResponse{
 		Token:        tokenString,
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		ExpiresIn:    config.JWT.Exp,
-		ExpiresAt:    expiresAt,
 		RefreshToken: refreshToken.Token,
-		User:         user,
 	}, nil
-}
-
-// setCookieTokens sets the access_token & refresh_token in the cookies
-func (a *API) setCookieTokens(config *conf.GlobalConfiguration, token *AccessTokenResponse, session bool, w http.ResponseWriter) error {
-	// don't need to catch error here since we always set the cookie name
-	_ = a.setCookieToken(config, "access-token", token.Token, session, w)
-	_ = a.setCookieToken(config, "refresh-token", token.RefreshToken, session, w)
-	return nil
-}
-
-func (a *API) setCookieToken(config *conf.GlobalConfiguration, name string, tokenString string, session bool, w http.ResponseWriter) error {
-	if name == "" {
-		return errors.New("failed to set cookie, invalid name")
-	}
-	cookieName := config.Cookie.Key + "-" + name
-	exp := time.Second * time.Duration(config.Cookie.Duration)
-	cookie := &http.Cookie{
-		Name:     cookieName,
-		Value:    tokenString,
-		Secure:   true,
-		HttpOnly: true,
-		Path:     "/",
-		Domain:   config.Cookie.Domain,
-	}
-	if !session {
-		cookie.Expires = time.Now().Add(exp)
-		cookie.MaxAge = config.Cookie.Duration
-	}
-
-	http.SetCookie(w, cookie)
-	return nil
-}
-
-func (a *API) clearCookieTokens(config *conf.GlobalConfiguration, w http.ResponseWriter) {
-	a.clearCookieToken(config, "access-token", w)
-	a.clearCookieToken(config, "refresh-token", w)
-}
-
-func (a *API) clearCookieToken(config *conf.GlobalConfiguration, name string, w http.ResponseWriter) {
-	cookieName := config.Cookie.Key
-	if name != "" {
-		cookieName += "-" + name
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     cookieName,
-		Value:    "",
-		Expires:  time.Now().Add(-1 * time.Hour * 10),
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		Path:     "/",
-		Domain:   config.Cookie.Domain,
-	})
 }
 
 func validateTokenClaims(outputClaims map[string]interface{}) error {

@@ -45,7 +45,6 @@ func (ts *AuditTestSuite) makeSuperAdmin(email string) string {
 	u, err := models.NewUser("", email, "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test User"})
 	require.NoError(ts.T(), err, "Error making new user")
 
-	u.Role = "supabase_admin"
 	require.NoError(ts.T(), ts.API.db.Create(u))
 
 	session, err := models.NewSession(u.ID, nil)
@@ -55,7 +54,7 @@ func (ts *AuditTestSuite) makeSuperAdmin(email string) string {
 	var token string
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err = ts.API.generateAccessToken(req, ts.API.db, u, &session.ID, models.PasswordGrant)
+	token, err = ts.API.generateAccessToken(req, ts.API.db, u, &session.ID, models.PasswordGrant)
 	require.NoError(ts.T(), err, "Error generating access token")
 
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))

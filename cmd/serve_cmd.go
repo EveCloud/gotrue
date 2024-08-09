@@ -7,7 +7,6 @@ import (
 	"github.com/evecloud/auth/internal/api"
 	"github.com/evecloud/auth/internal/conf"
 	"github.com/evecloud/auth/internal/storage"
-	"github.com/evecloud/auth/internal/utilities"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +31,7 @@ func serve(ctx context.Context) {
 	}
 	defer db.Close()
 
-	api := api.NewAPIWithVersion(config, db, utilities.Version)
+	api := api.NewAPI(config, db)
 
 	addr := net.JoinHostPort(config.API.Host, config.API.Port)
 	logrus.Infof("GoTrue API started on: %s", addr)

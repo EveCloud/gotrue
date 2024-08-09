@@ -62,8 +62,7 @@ func (a *API) adminGenerateLink(w http.ResponseWriter, r *http.Request) error {
 		referrer = params.RedirectTo
 	}
 
-	aud := a.requestAud(ctx, r)
-	user, err := models.FindUserByEmailAndAudience(db, params.Email, aud)
+	user, err := models.FindUserByEmail(db, params.Email)
 	if err != nil {
 		if models.IsNotFoundError(err) {
 			switch params.Type {
@@ -99,7 +98,6 @@ func (a *API) adminGenerateLink(w http.ResponseWriter, r *http.Request) error {
 			Password: params.Password,
 			Data:     params.Data,
 			Provider: "email",
-			Aud:      aud,
 		}
 
 		if err := a.validateSignupParams(ctx, signupParams); err != nil {
@@ -142,7 +140,6 @@ func (a *API) adminGenerateLink(w http.ResponseWriter, r *http.Request) error {
 					Email:    params.Email,
 					Data:     params.Data,
 					Provider: "email",
-					Aud:      aud,
 				}
 
 				// because params above sets no password, this
@@ -231,7 +228,7 @@ func (a *API) adminGenerateLink(w http.ResponseWriter, r *http.Request) error {
 			if terr != nil {
 				return terr
 			}
-			if duplicateUser, terr := models.IsDuplicatedEmail(tx, params.NewEmail, user.Aud, user); terr != nil {
+			if duplicateUser, terr := models.IsDuplicatedEmail(tx, params.NewEmail, user); terr != nil {
 				return internalServerError("Database error checking email").WithInternalError(terr)
 			} else if duplicateUser != nil {
 				return unprocessableEntityError(ErrorCodeEmailExists, DuplicateEmailMsg)

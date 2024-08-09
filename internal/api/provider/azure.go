@@ -84,7 +84,8 @@ func NewAzureProvider(conf conf.APIConfiguration, ext conf.OAuthProviderConfigur
 				AuthURL:  authHost + "/oauth2/v2.0/authorize",
 				TokenURL: authHost + "/oauth2/v2.0/token",
 			},
-			Scopes: oauthScopes,
+			Scopes:      oauthScopes,
+			RedirectURL: conf.URL + "/callback",
 		},
 		ExpectedIssuer: expectedIssuer,
 	}, nil

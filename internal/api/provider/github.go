@@ -63,7 +63,8 @@ func NewGithubProvider(config conf.APIConfiguration, ext conf.OAuthProviderConfi
 				AuthURL:  authHost + "/login/oauth/authorize",
 				TokenURL: authHost + "/login/oauth/access_token",
 			},
-			Scopes: oauthScopes,
+			RedirectURL: config.URL + "/callback",
+			Scopes:      oauthScopes,
 		},
 		APIHost: apiHost,
 	}, nil

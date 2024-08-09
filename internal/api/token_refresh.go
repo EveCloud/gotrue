@@ -79,7 +79,6 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 		// the connection pool does not get exhausted.
 
 		var tokenString string
-		var expiresAt int64
 		var newTokenResponse *AccessTokenResponse
 
 		err = db.Transaction(func(tx *storage.Connection) error {
@@ -182,7 +181,6 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 						time.Second * time.Duration(config.Security.RefreshTokenReuseInterval))
 
 					if a.Now().After(reuseUntil) {
-						a.clearCookieTokens(config, w)
 						// not OK to reuse this token
 
 						if config.Security.RefreshTokenRotationEnabled {
@@ -210,7 +208,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				issuedToken = newToken
 			}
 
-			tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, issuedToken.SessionId, models.TokenRefresh)
+			tokenString, terr = a.generateAccessToken(r, tx, user, issuedToken.SessionId, models.TokenRefresh)
 			if terr != nil {
 				httpErr, ok := terr.(*HTTPError)
 				if ok {
@@ -242,14 +240,9 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 
 			newTokenResponse = &AccessTokenResponse{
 				Token:        tokenString,
-				TokenType:    "bearer",
+				TokenType:    "Bearer",
 				ExpiresIn:    config.JWT.Exp,
-				ExpiresAt:    expiresAt,
 				RefreshToken: issuedToken.Token,
-				User:         user,
-			}
-			if terr = a.setCookieTokens(config, newTokenResponse, false, w); terr != nil {
-				return internalServerError("Failed to set JWT cookie. %s", terr)
 			}
 
 			return nil

@@ -82,6 +82,7 @@ func NewAppleProvider(conf conf.APIConfiguration, ctx context.Context, ext conf.
 				"email",
 				"name",
 			},
+			RedirectURL: conf.URL + "/callback",
 		},
 		oidc: oidcProvider,
 	}, nil

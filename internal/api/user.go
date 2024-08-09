@@ -124,7 +124,7 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if params.Email != "" && user.GetEmail() != params.Email {
-		if duplicateUser, err := models.IsDuplicatedEmail(db, params.Email, aud, user); err != nil {
+		if duplicateUser, err := models.IsDuplicatedEmail(db, params.Email, user); err != nil {
 			return internalServerError("Database error checking email").WithInternalError(err)
 		} else if duplicateUser != nil {
 			return unprocessableEntityError(ErrorCodeEmailExists, DuplicateEmailMsg)

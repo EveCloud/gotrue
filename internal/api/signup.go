@@ -22,7 +22,6 @@ type SignupParams struct {
 	Password            string                 `json:"password"`
 	Data                map[string]interface{} `json:"data"`
 	Provider            string                 `json:"-"`
-	Aud                 string                 `json:"-"`
 	Channel             string                 `json:"channel"`
 	CodeChallengeMethod string                 `json:"code_challenge_method"`
 	CodeChallenge       string                 `json:"code_challenge"`
@@ -74,15 +73,15 @@ func (p *SignupParams) ConfigureDefaults() {
 func (params *SignupParams) ToUserModel(isSSOUser bool) (user *models.User, err error) {
 	switch params.Provider {
 	case "email":
-		user, err = models.NewUser("", params.Email, params.Password, params.Aud, params.Data)
+		user, err = models.NewUser("", params.Email, params.Password, "", params.Data)
 	case "phone":
-		user, err = models.NewUser(params.Phone, "", params.Password, params.Aud, params.Data)
+		user, err = models.NewUser(params.Phone, "", params.Password, "", params.Data)
 	case "anonymous":
-		user, err = models.NewUser("", "", "", params.Aud, params.Data)
+		user, err = models.NewUser("", "", "", "", params.Data)
 		user.IsAnonymous = true
 	default:
 		// handles external provider case
-		user, err = models.NewUser("", params.Email, params.Password, params.Aud, params.Data)
+		user, err = models.NewUser("", params.Email, params.Password, "", params.Data)
 	}
 	if err != nil {
 		err = internalServerError("Database error creating user").WithInternalError(err)
@@ -111,10 +110,6 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 	config := a.config
 	db := a.db.WithContext(ctx)
 
-	if config.DisableSignup {
-		return unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
-	}
-
 	params := &SignupParams{}
 	if err := retrieveRequestParams(r, params); err != nil {
 		return err
@@ -134,8 +129,6 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 
 	grantParams.FillGrantParams(r)
 
-	params.Aud = a.requestAud(ctx, r)
-
 	switch params.Provider {
 	case "email":
 		if !config.External.Email.Enabled {
@@ -145,7 +138,10 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		user, err = models.IsDuplicatedEmail(db, params.Email, params.Aud, nil)
+		user, err = models.IsDuplicatedEmail(db, params.Email, nil)
+		if err != nil {
+			return badRequestError(ErrorCodeEmailExists, DuplicateEmailMsg)
+		}
 	case "phone":
 		if !config.External.Phone.Enabled {
 			return badRequestError(ErrorCodePhoneProviderDisabled, "Phone signups are disabled")
@@ -154,7 +150,7 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
-		user, err = models.FindUserByPhoneAndAudience(db, params.Phone, params.Aud)
+		user, err = models.FindUserByPhoneAndAudience(db, params.Phone, "")
 	default:
 		msg := ""
 		if config.External.Email.Enabled && config.External.Phone.Enabled {
@@ -324,9 +320,6 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 				return terr
 			}
 
-			if terr = a.setCookieTokens(config, token, false, w); terr != nil {
-				return internalServerError("Failed to set JWT cookie. %s", terr)
-			}
 			return nil
 		})
 		if err != nil {
@@ -350,13 +343,10 @@ func sanitizeUser(u *models.User, params *SignupParams) (*models.User, error) {
 
 	u.ID = uuid.Must(uuid.NewV4())
 
-	u.Role = ""
 	u.CreatedAt, u.UpdatedAt, u.ConfirmationSentAt = now, now, &now
 	u.LastSignInAt, u.ConfirmedAt, u.EmailConfirmedAt, u.PhoneConfirmedAt = nil, nil, nil, nil
 	u.Identities = make([]models.Identity, 0)
 	u.UserMetaData = params.Data
-	u.Aud = params.Aud
-
 	// sanitize app_metadata
 	u.AppMetaData = map[string]interface{}{
 		"provider":  params.Provider,
@@ -377,15 +367,10 @@ func sanitizeUser(u *models.User, params *SignupParams) (*models.User, error) {
 }
 
 func (a *API) signupNewUser(conn *storage.Connection, user *models.User) (*models.User, error) {
-	config := a.config
-
 	err := conn.Transaction(func(tx *storage.Connection) error {
 		var terr error
 		if terr = tx.Create(user); terr != nil {
 			return internalServerError("Database error saving new user").WithInternalError(terr)
-		}
-		if terr = user.SetRole(tx, config.JWT.DefaultGroupName); terr != nil {
-			return internalServerError("Database error updating user").WithInternalError(terr)
 		}
 		return nil
 	})

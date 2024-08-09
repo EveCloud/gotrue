@@ -58,9 +58,9 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 			}
 			issuer = detectedIssuer
 		}
-		cfg = &config.External.Azure
-		providerType = "azure"
-		acceptableClientIDs = append(acceptableClientIDs, config.External.Azure.ClientID...)
+		cfg = &config.External.Microsoft
+		providerType = "microsoft"
+		acceptableClientIDs = append(acceptableClientIDs, config.External.Microsoft.ClientID...)
 
 	default:
 		log.WithField("issuer", p.Issuer).WithField("client_id", p.ClientID).Warn("Use of POST /token with arbitrary issuer and client_id is deprecated for security reasons. Please switch to using the API with provider only!")

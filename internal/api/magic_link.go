@@ -65,8 +65,7 @@ func (a *API) MagicLink(w http.ResponseWriter, r *http.Request) error {
 	flowType := getFlowFromChallenge(params.CodeChallenge)
 
 	var isNewUser bool
-	aud := a.requestAud(ctx, r)
-	user, err := models.FindUserByEmailAndAudience(db, params.Email, aud)
+	user, err := models.FindUserByEmail(db, params.Email)
 	if err != nil {
 		if models.IsNotFoundError(err) {
 			isNewUser = true

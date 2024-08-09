@@ -158,7 +158,6 @@ func (a *API) handleOAuthCallback(r *http.Request) (*OAuthProviderData, error) {
 func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	config := a.config
 
 	var grantParams models.GrantParams
 	grantParams.FillGrantParams(r)
@@ -257,10 +256,6 @@ func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Re
 		}
 
 		rurl = token.AsRedirectURL(rurl, q)
-
-		if err := a.setCookieTokens(config, token, false, w); err != nil {
-			return internalServerError("Failed to set JWT cookie. %s", err)
-		}
 	}
 
 	http.Redirect(w, r, rurl, http.StatusFound)
@@ -301,14 +296,9 @@ func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.
 		}
 
 	case models.CreateAccount:
-		if config.DisableSignup {
-			return nil, unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
-		}
-
 		params := &SignupParams{
 			Provider: providerType,
 			Email:    decision.CandidateEmail.Email,
-			Aud:      aud,
 			Data:     identityData,
 		}
 
@@ -521,7 +511,7 @@ func (a *API) Provider(ctx context.Context, name string, scopes string) (provide
 	case "apple":
 		return provider.NewAppleProvider(config.API, ctx, config.External.Apple)
 	case "azure":
-		return provider.NewAzureProvider(config.API, config.External.Azure, scopes)
+		return provider.NewAzureProvider(config.API, config.External.Microsoft, scopes)
 	case "github":
 		return provider.NewGithubProvider(config.API, config.External.Github, scopes)
 	case "google":

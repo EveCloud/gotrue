@@ -48,7 +48,7 @@ func (ts *UserTestSuite) SetupTest() {
 
 func (ts *UserTestSuite) generateToken(user *models.User, sessionId *uuid.UUID) string {
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, user, sessionId, models.PasswordGrant)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, user, sessionId, models.PasswordGrant)
 	require.NoError(ts.T(), err, "Error generating access token")
 	return token
 }
@@ -59,13 +59,13 @@ func (ts *UserTestSuite) generateAccessTokenAndSession(user *models.User) string
 	require.NoError(ts.T(), ts.API.db.Create(session))
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, user, &session.ID, models.PasswordGrant)
+	token, err := ts.API.generateAccessToken(req, ts.API.db, user, &session.ID, models.PasswordGrant)
 	require.NoError(ts.T(), err, "Error generating access token")
 	return token
 }
 
 func (ts *UserTestSuite) TestUserGet() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err, "Error finding user")
 	token := ts.generateAccessTokenAndSession(u)
 
@@ -198,7 +198,7 @@ func (ts *UserTestSuite) TestUserUpdateEmail() {
 
 }
 func (ts *UserTestSuite) TestUserUpdatePhoneAutoconfirmEnabled() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	existingUser, err := models.NewUser("22222222", "", "", ts.Config.JWT.Aud, nil)
@@ -264,7 +264,7 @@ func (ts *UserTestSuite) TestUserUpdatePhoneAutoconfirmEnabled() {
 }
 
 func (ts *UserTestSuite) TestUserUpdatePassword() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	r, err := models.GrantAuthenticatedUser(ts.API.db, u, models.GrantParams{})
@@ -349,7 +349,7 @@ func (ts *UserTestSuite) TestUserUpdatePassword() {
 			require.Equal(ts.T(), c.expected.code, w.Code)
 
 			// Request body
-			u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+			u, err = models.FindUserByEmail(ts.API.db, "test@example.com")
 			require.NoError(ts.T(), err)
 
 			isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, c.newPassword, ts.API.config.Security.DBEncryption.DecryptionKeys, ts.API.config.Security.DBEncryption.Encrypt, ts.API.config.Security.DBEncryption.EncryptionKeyID)
@@ -361,7 +361,7 @@ func (ts *UserTestSuite) TestUserUpdatePassword() {
 }
 
 func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	type expected struct {
@@ -411,7 +411,7 @@ func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
 			require.Equal(ts.T(), c.expected.code, w.Code)
 
 			// Request body
-			u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+			u, err = models.FindUserByEmail(ts.API.db, "test@example.com")
 			require.NoError(ts.T(), err)
 
 			isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, c.newPassword, ts.API.config.Security.DBEncryption.DecryptionKeys, ts.API.config.Security.DBEncryption.Encrypt, ts.API.config.Security.DBEncryption.EncryptionKeyID)
@@ -425,7 +425,7 @@ func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
 func (ts *UserTestSuite) TestUserUpdatePasswordReauthentication() {
 	ts.Config.Security.UpdatePasswordRequireReauthentication = true
 
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	// Confirm the test user
@@ -443,7 +443,7 @@ func (ts *UserTestSuite) TestUserUpdatePasswordReauthentication() {
 	ts.API.handler.ServeHTTP(w, req)
 	require.Equal(ts.T(), w.Code, http.StatusOK)
 
-	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err = models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 	require.NotEmpty(ts.T(), u.ReauthenticationToken)
 	require.NotEmpty(ts.T(), u.ReauthenticationSentAt)
@@ -469,7 +469,7 @@ func (ts *UserTestSuite) TestUserUpdatePasswordReauthentication() {
 	require.Equal(ts.T(), w.Code, http.StatusOK)
 
 	// Request body
-	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err = models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, "newpass", ts.Config.Security.DBEncryption.DecryptionKeys, ts.Config.Security.DBEncryption.Encrypt, ts.Config.Security.DBEncryption.EncryptionKeyID)
@@ -482,7 +482,7 @@ func (ts *UserTestSuite) TestUserUpdatePasswordReauthentication() {
 
 func (ts *UserTestSuite) TestUserUpdatePasswordLogoutOtherSessions() {
 	ts.Config.Security.UpdatePasswordRequireReauthentication = false
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	// Confirm the test user

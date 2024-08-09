@@ -156,3 +156,13 @@ func (a *API) linkIdentityToUser(r *http.Request, ctx context.Context, tx *stora
 	}
 	return targetUser, nil
 }
+
+func (a *API) ListIdentities(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+	user := getUser(ctx)
+	identities, terr := models.FindIdentitiesByUserID(a.db, user.ID)
+	if terr != nil {
+		return internalServerError("Database error finding identities").WithInternalError(terr)
+	}
+	return sendJSON(w, http.StatusOK, identities)
+}

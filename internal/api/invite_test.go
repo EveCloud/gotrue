@@ -48,15 +48,13 @@ func (ts *InviteTestSuite) SetupTest() {
 
 func (ts *InviteTestSuite) makeSuperAdmin(email string) string {
 	// Cleanup existing user, if they already exist
-	if u, _ := models.FindUserByEmailAndAudience(ts.API.db, email, ts.Config.JWT.Aud); u != nil {
+	if u, _ := models.FindUserByEmail(ts.API.db, email); u != nil {
 		require.NoError(ts.T(), ts.API.db.Destroy(u), "Error deleting user")
 	}
 
 	u, err := models.NewUser("123456789", email, "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test User"})
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u))
-
-	u.Role = "supabase_admin"
 
 	var token string
 
@@ -65,7 +63,7 @@ func (ts *InviteTestSuite) makeSuperAdmin(email string) string {
 	require.NoError(ts.T(), ts.API.db.Create(session))
 
 	req := httptest.NewRequest(http.MethodPost, "/invite", nil)
-	token, _, err = ts.API.generateAccessToken(req, ts.API.db, u, &session.ID, models.Invite)
+	token, err = ts.API.generateAccessToken(req, ts.API.db, u, &session.ID, models.Invite)
 
 	require.NoError(ts.T(), err, "Error generating access token")
 
@@ -213,7 +211,7 @@ func (ts *InviteTestSuite) TestVerifyInvite() {
 			require.NoError(ts.T(), models.CreateOneTimeToken(ts.API.db, user.ID, user.GetEmail(), user.ConfirmationToken, models.ConfirmationToken))
 
 			// Find test user
-			_, err = models.FindUserByEmailAndAudience(ts.API.db, c.email, ts.Config.JWT.Aud)
+			_, err = models.FindUserByEmail(ts.API.db, c.email)
 			require.NoError(ts.T(), err)
 
 			// Request body

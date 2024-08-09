@@ -49,11 +49,7 @@ func (ts *MailTestSuite) SetupTest() {
 }
 
 func (ts *MailTestSuite) TestGenerateLink() {
-	// create admin jwt
-	claims := &AccessTokenClaims{
-		Role: "supabase_admin",
-	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
+	token, err := jwt.New(jwt.SigningMethodHS256).SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err, "Error generating admin jwt")
 
 	ts.setURIAllowListMap("http://localhost:8000/**")

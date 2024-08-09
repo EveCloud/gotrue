@@ -43,10 +43,7 @@ func (ts *AuthTestSuite) SetupTest() {
 }
 
 func (ts *AuthTestSuite) TestExtractBearerToken() {
-	userClaims := &AccessTokenClaims{
-		Role: "authenticated",
-	}
-	userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims).SignedString([]byte(ts.Config.JWT.Secret))
+	userJwt, err := jwt.New(jwt.SigningMethodHS256).SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err)
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.Header.Set("Authorization", "Bearer "+userJwt)
@@ -130,10 +127,6 @@ func (ts *AuthTestSuite) TestParseJWTClaims() {
 			ts.Config.JWT.ValidMethods = nil
 			require.NoError(ts.T(), ts.Config.ApplyDefaults())
 
-			userClaims := &AccessTokenClaims{
-				Role: "authenticated",
-			}
-
 			// get signing key and method from config
 			jwk, err := conf.GetSigningJwk(&ts.Config.JWT)
 			require.NoError(ts.T(), err)
@@ -141,7 +134,7 @@ func (ts *AuthTestSuite) TestParseJWTClaims() {
 			signingKey, err := conf.GetSigningKey(jwk)
 			require.NoError(ts.T(), err)
 
-			userJwtToken := jwt.NewWithClaims(signingMethod, userClaims)
+			userJwtToken := jwt.New(signingMethod)
 			require.NoError(ts.T(), err)
 			userJwtToken.Header["kid"] = jwk.KeyID()
 			userJwt, err := userJwtToken.SignedString(signingKey)
@@ -160,7 +153,7 @@ func (ts *AuthTestSuite) TestParseJWTClaims() {
 }
 
 func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	s, err := models.NewSession(u.ID, nil)
@@ -182,7 +175,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: "",
 				},
-				Role: "authenticated",
 			},
 			ExpectedError: forbiddenError(ErrorCodeBadJWT, "invalid claim: missing sub claim"),
 			ExpectedUser:  nil,
@@ -193,7 +185,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: u.ID.String(),
 				},
-				Role: "authenticated",
 			},
 			ExpectedError: nil,
 			ExpectedUser:  u,
@@ -204,7 +195,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: "invalid-subject-claim",
 				},
-				Role: "authenticated",
 			},
 			ExpectedError: badRequestError(ErrorCodeBadJWT, "invalid claim: sub claim must be a UUID"),
 			ExpectedUser:  nil,
@@ -215,7 +205,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: u.ID.String(),
 				},
-				Role:      "authenticated",
 				SessionId: "",
 			},
 			ExpectedError: nil,
@@ -227,7 +216,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: u.ID.String(),
 				},
-				Role:      "authenticated",
 				SessionId: uuid.Nil.String(),
 			},
 			ExpectedError: nil,
@@ -239,7 +227,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: u.ID.String(),
 				},
-				Role:      "authenticated",
 				SessionId: s.ID.String(),
 			},
 			ExpectedError:   nil,
@@ -252,7 +239,6 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				RegisteredClaims: jwt.RegisteredClaims{
 					Subject: u.ID.String(),
 				},
-				Role:      "authenticated",
 				SessionId: "73bf9ee0-9e8c-453b-b484-09cb93e2f341",
 			},
 			ExpectedError:   forbiddenError(ErrorCodeSessionNotFound, "Session from session_id claim in JWT does not exist").WithInternalError(models.SessionNotFoundError{}).WithInternalMessage("session id (73bf9ee0-9e8c-453b-b484-09cb93e2f341) doesn't exist"),

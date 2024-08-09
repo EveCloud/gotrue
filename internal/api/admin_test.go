@@ -44,10 +44,7 @@ func TestAdmin(t *testing.T) {
 func (ts *AdminTestSuite) SetupTest() {
 	models.TruncateAll(ts.API.db)
 	ts.Config.External.Email.Enabled = true
-	claims := &AccessTokenClaims{
-		Role: "supabase_admin",
-	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
+	token, err := jwt.New(jwt.SigningMethodHS256).SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err, "Error generating admin jwt")
 	ts.token = token
 }
@@ -461,7 +458,6 @@ func (ts *AdminTestSuite) TestAdminUserUpdate() {
 	data := models.User{}
 	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&data))
 
-	assert.Equal(ts.T(), "testing", data.Role)
 	assert.NotNil(ts.T(), data.UserMetaData)
 	assert.Equal(ts.T(), "David", data.UserMetaData["name"])
 	assert.Equal(ts.T(), newEmail, data.GetEmail())
@@ -550,7 +546,6 @@ func (ts *AdminTestSuite) TestAdminUserDelete() {
 		Password: "test",
 		Data:     map[string]interface{}{"name": "test"},
 		Provider: "email",
-		Aud:      ts.Config.JWT.Aud,
 	}
 	cases := []struct {
 		desc         string
@@ -617,7 +612,7 @@ func (ts *AdminTestSuite) TestAdminUserDelete() {
 				u, err = models.FindUserByID(ts.API.db, u.ID)
 				require.NotNil(ts.T(), u)
 			} else {
-				_, err = models.FindUserByEmailAndAudience(ts.API.db, signupParams.Email, ts.Config.JWT.Aud)
+				_, err = models.FindUserByEmail(ts.API.db, signupParams.Email)
 			}
 			require.Equal(ts.T(), c.expected.err, err)
 		})

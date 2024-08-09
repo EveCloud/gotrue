@@ -2,6 +2,8 @@ package conf
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -93,16 +96,13 @@ func (c *DBConfiguration) Validate() error {
 
 // JWTConfiguration holds all the JWT related configuration.
 type JWTConfiguration struct {
-	Secret           string         `json:"secret" required:"true"`
-	Exp              int            `json:"exp"`
-	Aud              string         `json:"aud"`
-	AdminGroupName   string         `json:"admin_group_name" split_words:"true"`
-	AdminRoles       []string       `json:"admin_roles" split_words:"true"`
-	DefaultGroupName string         `json:"default_group_name" split_words:"true"`
-	Issuer           string         `json:"issuer"`
-	KeyID            string         `json:"key_id" split_words:"true"`
-	Keys             JwtKeysDecoder `json:"keys"`
-	ValidMethods     []string       `json:"-"`
+	Secret       string         `json:"secret" required:"true"`
+	Exp          int            `json:"exp"`
+	Aud          string         `json:"aud"`
+	Issuer       string         `json:"issuer"`
+	KeyID        string         `json:"key_id" split_words:"true"`
+	Keys         JwtKeysDecoder `json:"keys"`
+	ValidMethods []string       `json:"-"`
 }
 
 type MFAFactorTypeConfiguration struct {
@@ -229,24 +229,24 @@ type PasswordConfiguration struct {
 
 // GlobalConfiguration holds all the configuration that applies to all instances.
 type GlobalConfiguration struct {
-	API                     APIConfiguration
-	DB                      DBConfiguration
-	External                ProviderConfiguration
-	Logging                 LoggingConfig  `envconfig:"LOG"`
-	Profiler                ProfilerConfig `envconfig:"PROFILER"`
-	OperatorToken           string         `split_words:"true" required:"false"`
-	Tracing                 TracingConfig
-	Metrics                 MetricsConfig
-	SMTP                    SMTPConfiguration
-	RateLimitHeader         string  `split_words:"true"`
-	RateLimitEmailSent      float64 `split_words:"true" default:"30"`
-	RateLimitSmsSent        float64 `split_words:"true" default:"30"`
-	RateLimitVerify         float64 `split_words:"true" default:"30"`
-	RateLimitTokenRefresh   float64 `split_words:"true" default:"150"`
-	RateLimitSso            float64 `split_words:"true" default:"30"`
-	RateLimitAnonymousUsers float64 `split_words:"true" default:"30"`
-	RateLimitOtp            float64 `split_words:"true" default:"30"`
+	API                   APIConfiguration
+	DB                    DBConfiguration
+	External              ProviderConfiguration
+	Logging               LoggingConfig  `envconfig:"LOG"`
+	Profiler              ProfilerConfig `envconfig:"PROFILER"`
+	OperatorToken         string         `split_words:"true" required:"false"`
+	Tracing               TracingConfig
+	Metrics               MetricsConfig
+	SMTP                  SMTPConfiguration
+	RateLimitHeader       string  `split_words:"true"`
+	RateLimitEmailSent    float64 `split_words:"true" default:"3"`
+	RateLimitSmsSent      float64 `split_words:"true" default:"30"`
+	RateLimitVerify       float64 `split_words:"true" default:"30"`
+	RateLimitTokenRefresh float64 `split_words:"true" default:"150"`
+	RateLimitSso          float64 `split_words:"true" default:"30"`
+	RateLimitOtp          float64 `split_words:"true" default:"30"`
 
+	Admins          []string `json:"admin_users" split_words:"true"`
 	SiteURL         string   `json:"site_url" split_words:"true" required:"true"`
 	URIAllowList    []string `json:"uri_allow_list" split_words:"true"`
 	URIAllowListMap map[string]glob.Glob
@@ -305,7 +305,7 @@ type EmailContentConfiguration struct {
 type ProviderConfiguration struct {
 	AnonymousUsers          AnonymousProviderConfiguration `json:"anonymous_users" split_words:"true"`
 	Apple                   OAuthProviderConfiguration     `json:"apple"`
-	Azure                   OAuthProviderConfiguration     `json:"azure"`
+	Microsoft               OAuthProviderConfiguration     `json:"microsoft"`
 	Bitbucket               OAuthProviderConfiguration     `json:"bitbucket"`
 	Discord                 OAuthProviderConfiguration     `json:"discord"`
 	Facebook                OAuthProviderConfiguration     `json:"facebook"`
@@ -727,46 +727,59 @@ func LoadGlobal(filename string) (*GlobalConfiguration, error) {
 
 // ApplyDefaults sets defaults for a GlobalConfiguration
 func (config *GlobalConfiguration) ApplyDefaults() error {
-	if config.JWT.AdminGroupName == "" {
-		config.JWT.AdminGroupName = "admin"
-	}
-
-	if config.JWT.AdminRoles == nil || len(config.JWT.AdminRoles) == 0 {
-		config.JWT.AdminRoles = []string{"service_role", "supabase_admin"}
-	}
-
 	if config.JWT.Exp == 0 {
 		config.JWT.Exp = 3600
 	}
 
 	if config.JWT.Keys == nil || len(config.JWT.Keys) == 0 {
 		// transform the secret into a JWK for consistency
-		privKey, err := jwk.FromRaw([]byte(config.JWT.Secret))
+		raw, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return err
 		}
+
+		privKey, err := jwk.FromRaw(raw)
+		if err != nil {
+			fmt.Printf("failed to create symmetric key: %s\n", err)
+			return err
+		}
+		if _, ok := privKey.(jwk.RSAPrivateKey); !ok {
+			fmt.Printf("expected jwk.SymmetricKey, got %T\n", privKey)
+			return err
+		}
+
 		if config.JWT.KeyID != "" {
 			if err := privKey.Set(jwk.KeyIDKey, config.JWT.KeyID); err != nil {
 				return err
 			}
+		} else {
+			if err := privKey.Set(jwk.KeyIDKey, uuid.New().String()); err != nil {
+				return err
+			}
+			config.JWT.KeyID = privKey.KeyID()
 		}
+
 		if privKey.Algorithm().String() == "" {
-			if err := privKey.Set(jwk.AlgorithmKey, jwt.SigningMethodHS256.Name); err != nil {
+			if err := privKey.Set(jwk.AlgorithmKey, jwt.SigningMethodRS256.Name); err != nil {
 				return err
 			}
 		}
+
 		if err := privKey.Set(jwk.KeyUsageKey, "sig"); err != nil {
 			return err
 		}
+
+		pubKey, err := privKey.PublicKey()
+		if err != nil {
+			return err
+		}
+
 		if len(privKey.KeyOps()) == 0 {
 			if err := privKey.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify}); err != nil {
 				return err
 			}
 		}
-		pubKey, err := privKey.PublicKey()
-		if err != nil {
-			return err
-		}
+
 		config.JWT.Keys = make(JwtKeysDecoder)
 		config.JWT.Keys[config.JWT.KeyID] = JwkInfo{
 			PublicKey:  pubKey,

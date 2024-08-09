@@ -48,12 +48,7 @@ func (a *API) Now() time.Time {
 
 // NewAPI instantiates a new REST API
 func NewAPI(globalConfig *conf.GlobalConfiguration, db *storage.Connection) *API {
-	return NewAPIWithVersion(globalConfig, db, defaultVersion)
-}
-
-// NewAPIWithVersion creates a new REST API using the specified version
-func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Connection, version string) *API {
-	api := &API{config: globalConfig, db: db, version: version}
+	api := &API{config: globalConfig, db: db, version: defaultVersion}
 
 	if api.config.Password.HIBP.Enabled {
 		httpClient := &http.Client{
@@ -100,6 +95,7 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 
 	r.Get("/health", api.HealthCheck)
 	r.Get("/.well-known/jwks.json", api.Jwks)
+	r.Get("/.well-known/openid-configuration", api.OpenIDConfiguration)
 
 	r.Route("/callback", func(r *router) {
 		r.Use(api.isValidExternalHost)
@@ -119,28 +115,22 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 		sharedLimiter := api.limitEmailOrPhoneSentHandler()
 		r.With(sharedLimiter).With(api.requireAdminCredentials).Post("/invite", api.Invite)
 		r.With(sharedLimiter).With(api.verifyCaptcha).Route("/signup", func(r *router) {
-			// rate limit per hour
-			limitAnonymousSignIns := tollbooth.NewLimiter(api.config.RateLimitAnonymousUsers/(60*60), &limiter.ExpirableOptions{
-				DefaultExpirationTTL: time.Hour,
-			}).SetBurst(int(api.config.RateLimitAnonymousUsers)).SetMethods([]string{"POST"})
-
 			limitSignups := tollbooth.NewLimiter(api.config.RateLimitOtp/(60*5), &limiter.ExpirableOptions{
 				DefaultExpirationTTL: time.Hour,
 			}).SetBurst(30)
 
 			r.Post("/", func(w http.ResponseWriter, r *http.Request) error {
+				if api.config.DisableSignup {
+					return unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
+				}
+
 				params := &SignupParams{}
 				if err := retrieveRequestParams(r, params); err != nil {
 					return err
 				}
+
 				if params.Email == "" && params.Phone == "" {
-					if !api.config.External.AnonymousUsers.Enabled {
-						return unprocessableEntityError(ErrorCodeAnonymousProviderDisabled, "Anonymous sign-ins are disabled")
-					}
-					if _, err := api.limitHandler(limitAnonymousSignIns)(w, r); err != nil {
-						return err
-					}
-					return api.SignupAnonymously(w, r)
+					return forbiddenError(ErrorCodeNoAuthorization, "Email or phone is required")
 				}
 
 				// apply ip-based rate limiting on otps
@@ -205,7 +195,7 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 			r.Get("/", api.Reauthenticate)
 		})
 
-		r.With(api.requireAuthentication).Route("/user", func(r *router) {
+		r.With(api.requireAuthentication).Route("/userinfo", func(r *router) {
 			r.Get("/", api.UserGet)
 			r.With(api.limitHandler(
 				// Allow requests at the specified rate per 5 minutes
@@ -216,13 +206,13 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 
 			r.Route("/identities", func(r *router) {
 				r.Use(api.requireManualLinkingEnabled)
+				r.Get("/", api.ListIdentities)
 				r.Get("/authorize", api.LinkIdentity)
 				r.Delete("/{identity_id}", api.DeleteIdentity)
 			})
 		})
 
 		r.With(api.requireAuthentication).Route("/factors", func(r *router) {
-			r.Use(api.requireNotAnonymous)
 			r.Post("/", api.EnrollFactor)
 			r.Route("/{factor_id}", func(r *router) {
 				r.Use(api.loadFactor)
@@ -321,17 +311,13 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 }
 
 type HealthCheckResponse struct {
-	Version     string `json:"version"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Version string `json:"version"`
 }
 
 // HealthCheck endpoint indicates if the gotrue api service is available
 func (a *API) HealthCheck(w http.ResponseWriter, r *http.Request) error {
 	return sendJSON(w, http.StatusOK, HealthCheckResponse{
-		Version:     a.version,
-		Name:        "GoTrue",
-		Description: "GoTrue is a user registration and authentication API",
+		Version: a.version,
 	})
 }
 

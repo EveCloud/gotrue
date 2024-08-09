@@ -124,7 +124,7 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHub_PKCE() {
 			require.NotEmpty(ts.T(), authCode)
 
 			// Check for valid provider access token, mock does not return refresh token
-			user, err := models.FindUserByEmailAndAudience(ts.API.db, "github@example.com", ts.Config.JWT.Aud)
+			user, err := models.FindUserByEmail(ts.API.db, "github@example.com")
 			require.NoError(ts.T(), err)
 			require.NotEmpty(ts.T(), user)
 			flowState, err := models.FindFlowStateByAuthCode(ts.API.db, authCode)
@@ -148,8 +148,6 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHub_PKCE() {
 			require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&data))
 			require.NotEmpty(ts.T(), data.Token)
 			require.NotEmpty(ts.T(), data.RefreshToken)
-			require.NotEmpty(ts.T(), data.ProviderAccessToken)
-			require.Equal(ts.T(), data.User.ID, user.ID)
 		})
 	}
 
@@ -289,7 +287,7 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubErrorWhenUserBanned() {
 	u := performAuthorization(ts, "github", code, "")
 	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "github@example.com", "GitHub Test", "123", "http://example.com/avatar")
 
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, "github@example.com", ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmail(ts.API.db, "github@example.com")
 	require.NoError(ts.T(), err)
 	t := time.Now().Add(24 * time.Hour)
 	user.BannedUntil = &t

@@ -117,7 +117,6 @@ func (a *API) Verify(w http.ResponseWriter, r *http.Request) error {
 func (a *API) verifyGet(w http.ResponseWriter, r *http.Request, params *VerifyParams) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	config := a.config
 
 	var (
 		user        *models.User
@@ -184,10 +183,6 @@ func (a *API) verifyGet(w http.ResponseWriter, r *http.Request, params *VerifyPa
 			if terr != nil {
 				return terr
 			}
-
-			if terr = a.setCookieTokens(config, token, false, w); terr != nil {
-				return internalServerError("Failed to set JWT cookie. %s", terr)
-			}
 		} else if isPKCEFlow(flowType) {
 			if authCode, terr = issueAuthCode(tx, user, authenticationMethod); terr != nil {
 				return badRequestError(ErrorCodeFlowStateNotFound, "No associated flow state found. %s", terr)
@@ -227,7 +222,6 @@ func (a *API) verifyGet(w http.ResponseWriter, r *http.Request, params *VerifyPa
 func (a *API) verifyPost(w http.ResponseWriter, r *http.Request, params *VerifyParams) error {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
-	config := a.config
 
 	var (
 		user        *models.User
@@ -286,9 +280,6 @@ func (a *API) verifyPost(w http.ResponseWriter, r *http.Request, params *VerifyP
 			return terr
 		}
 
-		if terr = a.setCookieTokens(config, token, false, w); terr != nil {
-			return internalServerError("Failed to set JWT cookie. %s", terr)
-		}
 		return nil
 	})
 	if err != nil {
@@ -651,7 +642,7 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 		// the query used has to also check if the token saved in the db contains the pkce_ prefix
 		user, err = models.FindUserForEmailChange(conn, params.Email, tokenHash, aud, config.Mailer.SecureEmailChangeEnabled)
 	default:
-		user, err = models.FindUserByEmailAndAudience(conn, params.Email, aud)
+		user, err = models.FindUserByEmail(conn, params.Email)
 	}
 
 	if err != nil {

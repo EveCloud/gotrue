@@ -66,6 +66,7 @@ func NewGoogleProvider(conf conf.APIConfiguration, ctx context.Context, ext conf
 			ClientSecret: ext.Secret,
 			Endpoint:     oidcProvider.Endpoint(),
 			Scopes:       oauthScopes,
+			RedirectURL:  conf.URL + "/callback",
 		},
 		oidc: oidcProvider,
 	}, nil

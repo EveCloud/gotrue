@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/evecloud/auth/internal/conf"
 	"github.com/evecloud/auth/internal/models"
-	"github.com/evecloud/auth/internal/storage"
 	"github.com/gofrs/uuid"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
@@ -16,33 +14,20 @@ import (
 // requireAuthentication checks incoming requests for tokens presented using the Authorization header
 func (a *API) requireAuthentication(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	token, err := a.extractBearerToken(r)
-	config := a.config
 	if err != nil {
-		a.clearCookieTokens(config, w)
 		return nil, err
 	}
 
 	ctx, err := a.parseJWTClaims(token, r)
 	if err != nil {
-		a.clearCookieTokens(config, w)
 		return ctx, err
 	}
 
 	ctx, err = a.maybeLoadUserOrSession(ctx)
 	if err != nil {
-		a.clearCookieTokens(config, w)
 		return ctx, err
 	}
 	return ctx, err
-}
-
-func (a *API) requireNotAnonymous(w http.ResponseWriter, r *http.Request) (context.Context, error) {
-	ctx := r.Context()
-	claims := getClaims(ctx)
-	if claims.IsAnonymous {
-		return nil, forbiddenError(ErrorCodeNoAuthorization, "Anonymous user not allowed to perform these actions")
-	}
-	return ctx, nil
 }
 
 func (a *API) requireAdmin(ctx context.Context) (context.Context, error) {
@@ -52,14 +37,22 @@ func (a *API) requireAdmin(ctx context.Context) (context.Context, error) {
 		return nil, forbiddenError(ErrorCodeBadJWT, "Invalid token")
 	}
 
-	adminRoles := a.config.JWT.AdminRoles
-
-	if isStringInSlice(claims.Role, adminRoles) {
-		// successful authentication
-		return withAdminUser(ctx, &models.User{Role: claims.Role, Email: storage.NullString(claims.Role)}), nil
+	userID, err := uuid.FromString(claims.Subject)
+	if err != nil {
+		return nil, forbiddenError(ErrorCodeBadJWT, "Invalid token")
 	}
 
-	return nil, forbiddenError(ErrorCodeNotAdmin, "User not allowed").WithInternalMessage(fmt.Sprintf("this token needs to have one of the following roles: %v", strings.Join(adminRoles, ", ")))
+	user, err := models.FindUserByID(a.db.WithContext(ctx), userID)
+	if err != nil {
+		return nil, forbiddenError(ErrorCodeBadJWT, "Invalid token")
+	}
+
+	if isStringInSlice(string(user.Email), a.config.Admins) {
+		// successful authentication
+		return withAdminUser(ctx, &models.User{Email: user.Email}), nil
+	}
+
+	return nil, forbiddenError(ErrorCodeNotAdmin, "User is not an admin")
 }
 
 func (a *API) extractBearerToken(r *http.Request) (string, error) {

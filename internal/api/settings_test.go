@@ -24,28 +24,12 @@ func TestSettings_DefaultProviders(t *testing.T) {
 	resp := Settings{}
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 
-	p := resp.ExternalProviders
+	p := resp.Providers
 
-	require.False(t, p.Phone)
-	require.True(t, p.Email)
-	require.True(t, p.Azure)
-	require.True(t, p.Bitbucket)
-	require.True(t, p.Discord)
-	require.True(t, p.Facebook)
-	require.True(t, p.Notion)
-	require.True(t, p.Spotify)
-	require.True(t, p.Slack)
-	require.True(t, p.SlackOIDC)
+	require.True(t, p.Apple)
+	require.True(t, p.Microsoft)
 	require.True(t, p.Google)
-	require.True(t, p.Kakao)
-	require.True(t, p.Keycloak)
-	require.True(t, p.Linkedin)
-	require.True(t, p.LinkedinOIDC)
 	require.True(t, p.GitHub)
-	require.True(t, p.GitLab)
-	require.True(t, p.Twitch)
-	require.True(t, p.WorkOS)
-	require.True(t, p.Zoom)
 
 }
 
@@ -67,7 +51,4 @@ func TestSettings_EmailDisabled(t *testing.T) {
 	require.Equal(t, w.Code, http.StatusOK)
 	resp := Settings{}
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-
-	p := resp.ExternalProviders
-	require.False(t, p.Email)
 }

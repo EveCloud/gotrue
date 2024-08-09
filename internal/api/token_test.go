@@ -554,7 +554,7 @@ func (ts *TokenTestSuite) TestMagicLinkPKCESignIn() {
 	ts.API.handler.ServeHTTP(w, req)
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 
-	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err := models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 
 	// Verify OTP
@@ -567,7 +567,7 @@ func (ts *TokenTestSuite) TestMagicLinkPKCESignIn() {
 	assert.Equal(ts.T(), http.StatusSeeOther, w.Code)
 	rURL, _ := w.Result().Location()
 
-	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+	u, err = models.FindUserByEmail(ts.API.db, "test@example.com")
 	require.NoError(ts.T(), err)
 	assert.True(ts.T(), u.IsConfirmed())
 

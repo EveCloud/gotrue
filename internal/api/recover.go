@@ -45,9 +45,8 @@ func (a *API) Recover(w http.ResponseWriter, r *http.Request) error {
 
 	var user *models.User
 	var err error
-	aud := a.requestAud(ctx, r)
 
-	user, err = models.FindUserByEmailAndAudience(db, params.Email, aud)
+	user, err = models.FindUserByEmail(db, params.Email)
 	if err != nil {
 		if models.IsNotFoundError(err) {
 			return sendJSON(w, http.StatusOK, map[string]string{})
