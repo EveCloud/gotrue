@@ -78,8 +78,8 @@ type EmailProviderConfiguration struct {
 // DBConfiguration holds all the database related configuration.
 type DBConfiguration struct {
 	Driver    string `json:"driver" required:"true"`
-	URL       string `json:"url" required:"true"`
-	Namespace string `json:"namespace" default:"auth"`
+	URL       string `json:"url" required:"true" envconfig:"DATABASE_URL"`
+	Namespace string `json:"namespace" default:"auth" envconfig:"DB_NAMESPACE"`
 	// MaxPoolSize defaults to 0 (unlimited).
 	MaxPoolSize       int           `json:"max_pool_size" split_words:"true"`
 	MaxIdlePoolSize   int           `json:"max_idle_pool_size" split_words:"true"`
@@ -96,7 +96,7 @@ func (c *DBConfiguration) Validate() error {
 
 // JWTConfiguration holds all the JWT related configuration.
 type JWTConfiguration struct {
-	Secret       string         `json:"secret" required:"true"`
+	Secret       string         `json:"secret"`
 	Exp          int            `json:"exp"`
 	Aud          string         `json:"aud"`
 	Issuer       string         `json:"issuer"`
