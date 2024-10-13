@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.22.x]
-    runs-on: namespace-profile-default
+    runs-on: evecloud-ubuntu
     services:
       postgres:
         image: postgres:15
